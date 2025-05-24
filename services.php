@@ -55,10 +55,10 @@ $notifications = $notificationStmt->get_result();
             width: 260px;
             height: 100vh;
             position: fixed;
-            background-color: #011f4b !important;
+            background-color: #2e7d32 !important;
             color: white;
             padding-top: 15px;
-            box-shadow: 4px 0 15px rgba(1, 31, 75, 0.15);
+            box-shadow: 4px 0 15px rgba(46, 125, 50, 0.15);
             transition: transform 0.3s ease;
             z-index: 2000;
             overflow-y: hidden;
@@ -81,14 +81,14 @@ $notifications = $notificationStmt->get_result();
         }
 
         .sidebar-divider {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1.5px solid #60ad5e;
             margin: 12px 20px;
         }
 
         .sidebar a {
             display: flex;
             align-items: center;
-            color: rgba(255, 255, 255, 0.85);
+            color: #fff;
             text-decoration: none;
             padding: 14px 25px;
             width: 100%;
@@ -106,7 +106,7 @@ $notifications = $notificationStmt->get_result();
         }
 
         .sidebar a:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: #60ad5e;
             color: #fff;
             padding-left: 30px;
         }
@@ -116,16 +116,16 @@ $notifications = $notificationStmt->get_result();
         }
 
         .sidebar a.active {
-            background: rgba(255, 255, 255, 0.15);
+            background: #60ad5e;
             color: #fff;
-            border-right: 4px solid #4a90e2;
+            border-right: 6px solid #388e3c;
         }
 
         /* Top Bar Part */
         .top-bar {
             width: calc(100% - 260px);
             height: 65px;
-            background-color: #011f4b;
+            background-color: #2e7d32;
             color: #fff;
             display: flex;
             align-items: center;
@@ -135,8 +135,8 @@ $notifications = $notificationStmt->get_result();
             margin-left: 260px;
             justify-content: space-between;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 15px rgba(1, 31, 75, 0.1);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 2px 15px rgba(46, 125, 50, 0.1);
+            border-bottom: 2px solid #60ad5e;
             letter-spacing: 0.5px;
         }
 
@@ -215,12 +215,16 @@ $notifications = $notificationStmt->get_result();
         }
 
         /* Main Content */
-        .main-content {
-            margin-left: 260px;
-            padding: 20px;
-            padding-top: 70px;
-            transition: margin-left 0.3s ease;
-        }
+.main-content {
+    margin-left: 260px;
+    padding: 20px;
+    padding-top: 100px; /* Increase if your fixed header is tall */
+    min-height: 100vh; /* Ensures it doesn't get hidden under floating sections */
+    box-sizing: border-box; /* Prevents padding from overflowing */
+    z-index: 1; /* Keeps it under overlays if needed */
+    position: relative; /* Helps manage stacking if elements are overlapping */
+}
+
 
         /* Services Container */
         .services-container {
@@ -251,12 +255,13 @@ $notifications = $notificationStmt->get_result();
         }
 
         .service-box img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
+    width: 100%;
+    height: auto; /* Previously 200px */
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
 
         .service-box h3 {
             color: #011f4b;
@@ -325,7 +330,7 @@ $notifications = $notificationStmt->get_result();
     </button>
 
     <div class="sidebar" id="sidebar">
-        <img src="MedicalClinicLogo.png" alt="Logo">
+        <img src="img/GCLINIC.png" alt="Logo">
         <div class="sidebar-divider"></div>
         <a href="studentHome.php"><i class="bi bi-house"></i> Home</a>
         <a href="doctors.php"><i class="bi bi-person-square"></i> Doctors</a>
@@ -351,33 +356,31 @@ $notifications = $notificationStmt->get_result();
         </div>
     </div>
 
-    <div class="main-content">
-        <h1 class="page-title">Our Services</h1>
-        <div class="services-container">
-            <div class="services-grid">
-                <div class="service-box">
-                    <img src="MedicalExam.png" alt="Medical Examination">
-                    <h3>Medical Examination</h3>
-                    <p>A comprehensive evaluation of your health by a doctor to assess overall well-being. This exam includes checking vital signs, reviewing medical history, and conducting necessary physical tests to detect any potential health issues. It is essential for monitoring your health regularly and preventing possible future complications.</p>
-                </div>
-                <div class="service-box">
-                    <img src="MedicalCert.png" alt="Medical Certificate">
-                    <h3>Medical Certificate</h3>
-                    <p>A document stating your medical condition issued by a licensed physician. This certificate is often required for work, school, or other legal purposes to verify your health status. It includes details of the examination conducted, your diagnosis, and recommendations for treatment if necessary.</p>
-                </div>
-                <div class="service-box">
-                    <img src="MedicalClearance.png" alt="Medical Clearance">
-                    <h3>Medical Clearance</h3>
-                    <p>A certificate that ensures you are fit for work or school, required by institutions. The clearance includes a thorough health evaluation, confirming that you are physically and mentally capable of performing tasks or participating in activities. It may also be required before traveling, joining sports, or engaging in physically demanding jobs.</p>
-                </div>
-                <div class="service-box">
-                    <img src="OralCheck.png" alt="Oral Care Checkup">
-                    <h3>Oral Care Checkup</h3>
-                    <p>A dental checkup to assess the health of your teeth and gums. During this exam, a dentist will look for signs of decay, gum disease, or any other oral health issues. Regular checkups are vital in maintaining good oral hygiene, preventing cavities, and ensuring that your mouth stays healthy for years to come. Professional cleaning may also be done to remove plaque buildup.</p>
-                </div>
-            </div>
+    <div class="services-container">
+    <h1 class="page-title">Dental Services</h1>
+    <div class="services-grid">
+        <div class="service-box">
+            <img src="consul.png" alt="Consultation">
+            <h3>Dental Consultation & Treatment</h3>
+            <p>Our dental team is available daily to assist Gordon College students with any dental concerns. Whether you need help with a toothache, oral check-up, or guidance on dental health, we're here for you. This service is helpful for students completing medical requirements or simply maintaining their oral wellness.</p>
+        </div>
+        <div class="service-box">
+            <img src="cleaning.png" alt="Oral Prophylaxis">
+            <h3>Oral Prophylaxis (Cleaning)</h3>
+            <p>Keep your smile fresh and clean! Removes plaque and dirt buildup to keep your teeth and gums healthy, perfect for staying fresh and confident on campus.</p>
+        </div>
+        <div class="service-box">
+            <img src="tooth.png" alt="Extraction">
+            <h3>Simple Tooth Extraction</h3>
+            <p>For teeth that are damaged or causing pain. Quick and safe procedure done by our licensed dentist.</p>
+        </div>
+        <div class="service-box">
+            <img src="last.png" alt="Dental Lecture">
+            <h3>Dental Care Lectures</h3>
+            <p>Discussions about proper brushing, flossing, and daily dental care, helpful tips every student can use.</p>
         </div>
     </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>

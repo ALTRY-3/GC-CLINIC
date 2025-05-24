@@ -51,10 +51,10 @@ $notifications = $notificationStmt->get_result();
             width: 260px;
             height: 100vh;
             position: fixed;
-            background-color: #011f4b !important;
+            background-color: #2e7d32 !important;
             color: white;
             padding-top: 15px;
-            box-shadow: 4px 0 15px rgba(1, 31, 75, 0.15);
+            box-shadow: 4px 0 15px rgba(46, 125, 50, 0.15);
             transition: transform 0.3s ease;
             z-index: 2000;
             overflow-y: hidden;
@@ -77,14 +77,14 @@ $notifications = $notificationStmt->get_result();
         }
 
         .sidebar-divider {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1.5px solid #60ad5e;
             margin: 12px 20px;
         }
 
         .sidebar a {
             display: flex;
             align-items: center;
-            color: rgba(255, 255, 255, 0.85);
+            color: #fff;
             text-decoration: none;
             padding: 14px 25px;
             width: 100%;
@@ -102,7 +102,7 @@ $notifications = $notificationStmt->get_result();
         }
 
         .sidebar a:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: #60ad5e;
             color: #fff;
             padding-left: 30px;
         }
@@ -112,16 +112,16 @@ $notifications = $notificationStmt->get_result();
         }
 
         .sidebar a.active {
-            background: rgba(255, 255, 255, 0.15);
+            background: #60ad5e;
             color: #fff;
-            border-right: 4px solid #4a90e2;
+            border-right: 6px solid #388e3c;
         }
 
         /* Top Bar styles */
         .top-bar {
             width: calc(100% - 260px);
             height: 65px;
-            background-color: #011f4b;
+            background-color: #2e7d32;
             color: #fff;
             display: flex;
             align-items: center;
@@ -131,8 +131,8 @@ $notifications = $notificationStmt->get_result();
             margin-left: 260px;
             justify-content: space-between;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 15px rgba(1, 31, 75, 0.1);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 2px 15px rgba(46, 125, 50, 0.1);
+            border-bottom: 2px solid #60ad5e;
             letter-spacing: 0.5px;
         }
 
@@ -593,7 +593,7 @@ $notifications = $notificationStmt->get_result();
     </button>
 
     <div class="sidebar" id="sidebar">
-        <img src="MedicalClinicLogo.png" alt="Logo">
+        <img src="img/GCLINIC.png" alt="Logo">
         <div class="sidebar-divider"></div>
         <a href="studentHome.php"><i class="bi bi-house"></i> Home</a>
         <a href="doctors.php"><i class="bi bi-person-square"></i> Doctors</a>
