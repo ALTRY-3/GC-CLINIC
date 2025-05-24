@@ -65,7 +65,7 @@ table tr:not(:first-child) td {
 }
 
 .login-btn {
-    background-color: #212c55;
+    background-color: #1fdc93;
     color: white;
     border: none;
     border-radius: 5px;
@@ -75,7 +75,7 @@ table tr:not(:first-child) td {
 }
 
 .login-btn:hover {
-    background-color: #1a2344;
+    background-color: #1e992b;
 }
 
 .edoc-logo{
@@ -125,7 +125,7 @@ table tr:not(:first-child) td {
     padding-bottom: 60px;
 }
 .background-container h1{
-    color: #212c55;
+    color: #003b28;
     padding-top: 50px;
     font-size: 30px;
     font-weight: 500;
@@ -142,7 +142,7 @@ table tr:not(:first-child) td {
 
 .card{
     width: 325px;
-    background: #212c55;
+    background: #1e992b;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
@@ -152,11 +152,12 @@ table tr:not(:first-child) td {
 .card:hover{
     transform: translateY(-20px);
 }
-.card img{
+.card img {
     width: 100%;
-    height: 250px;
-
+    height: auto;
+    object-fit: cover;
 }
+
 .card-content{
     padding: 16px;
 
@@ -208,7 +209,7 @@ table tr:not(:first-child) td {
     left: 0;
     width: 100%;
     height: 100%;
-    background: #212c55;
+    background: #1e992b;
     opacity: 0.5;
     transform: translateX(-100%); 
     transition: all 0.25s;
@@ -249,7 +250,7 @@ table tr:not(:first-child) td {
 }
 
 .fig h5 {
-    background: #212c55;
+    background: #1fdc93
     padding: 3px 10px;
     text-transform: capitalize;
 }
@@ -275,7 +276,7 @@ table tr:not(:first-child) td {
 .about-content h2 {
     font-size: 32px;
     line-height: 1.4;
-    color: #212c55;
+    color: #003b28;
     margin-bottom: 20px;
     font-weight: 600;
 }
@@ -293,7 +294,7 @@ table tr:not(:first-child) td {
 .about-btn {
     display: inline-block;
     padding: 12px 30px;
-    background-color: #212c55;
+    background-color: #1fdc93;
     color: white;
     text-decoration: none;
     border-radius: 5px;
@@ -302,7 +303,7 @@ table tr:not(:first-child) td {
 }
 
 .about-btn:hover {
-    background-color: #1a2344;
+    background-color: #1e992b;
 }
 
 /* Testimony section */
@@ -324,7 +325,7 @@ table tr:not(:first-child) td {
 
 /* Footer section */
 .footer-container {
-    background-color: #212c55;
+    background-color: #1e992b;
     padding: 40px 20px;
     display: flex;
     justify-content: space-between;
