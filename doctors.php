@@ -460,7 +460,8 @@ if ($student_stmt) {
     <div class="sidebar" id="sidebar">
         <img src="img/GCLINIC.png" alt="Logo">
         <div class="sidebar-divider"></div>
-        <a href="studentHome.php"><i class="bi bi-house"></i> Home</a>
+        <a href="studentDashboard.php"><i class="bi bi-house"></i> Home</a>
+        <a href="studentHome.php"><i class="bi bi-person"></i> Profile</a>
         <a href="doctors.php" class="active"><i class="bi bi-person-square"></i> Doctors</a>
         <a href="appointment.php"><i class="bi bi-journal-plus"></i> Schedule Appointment</a>
         <a href="schedule.php"><i class="bi bi-journal-arrow-down"></i> My Appointments</a>

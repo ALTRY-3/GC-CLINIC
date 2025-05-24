@@ -39,660 +39,885 @@ $notifications = $notificationStmt->get_result();
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #60ad5e;
+            --primary-dark: #1b5e20;
+            --secondary: #1565c0;
+            --secondary-light: #5e92f3;
+            --secondary-dark: #003c8f;
+            --text-dark: #263238;
+            --text-medium: #546e7a;
+            --text-light: #78909c;
+            --surface-light: #f5f7fa;
+            --surface-medium: #e1e5eb;
+            --surface-dark: #cfd8dc;
+            --danger: #d32f2f;
+            --success: #388e3c;
+            --warning: #f57c00;
+            --shadow-sm: 0 2px 6px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+        
         body {
             margin: 0;
             font-family: 'Poppins', sans-serif;
-            overflow-x: hidden;
-            background-color: #f6faff;
+            background-color: var(--surface-light);
+            color: var(--text-dark);
         }
-
-        /* Sidebar styles */
+        
+        /* Layout */
+        .app-container {
+            display: grid;
+            min-height: 100vh;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas: 
+                "sidebar header"
+                "sidebar main";
+        }
+        
+        /* Sidebar */
         .sidebar {
+            grid-area: sidebar;
             width: 260px;
-            height: 100vh;
+            background: var(--primary);
+            transition: all 0.3s ease;
             position: fixed;
-            background-color: #2e7d32 !important;
-            color: white;
-            padding-top: 15px;
-            box-shadow: 4px 0 15px rgba(46, 125, 50, 0.15);
-            transition: transform 0.3s ease;
-            z-index: 2000;
-            overflow-y: hidden;
-            left: 0;
-            top: 0;
-            display: block;
+            height: 100vh;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
         }
-
-        .sidebar img {
-            width: 65%;
-            height: auto;
-            margin: 0 auto 15px;
-            display: block;
-            filter: none;
-            transition: transform 0.3s ease;
+        
+        .sidebar-collapsed {
+            transform: translateX(-260px);
         }
-
-        .sidebar img:hover {
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-logo {
+            width: 70%;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-logo:hover {
             transform: scale(1.05);
         }
-
+        
         .sidebar-divider {
-            border-bottom: 1.5px solid #60ad5e;
-            margin: 12px 20px;
+            border-bottom: 1px solid var(--primary-light);
+            margin: 8px 20px;
         }
-
-        .sidebar a {
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar-menu a {
             display: flex;
             align-items: center;
-            color: #fff;
-            text-decoration: none;
             padding: 14px 25px;
-            width: 100%;
-            transition: all 0.3s ease;
-            font-size: 0.95rem;
+            color: white;
+            text-decoration: none;
+            transition: all 0.2s ease;
             font-weight: 500;
-            position: relative;
-            overflow: hidden;
         }
-
-        .sidebar a i {
-            margin-right: 12px;
-            font-size: 1.2rem;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar a:hover {
-            background: #60ad5e;
-            color: #fff;
+        
+        .sidebar-menu a:hover {
+            background: var(--primary-light);
             padding-left: 30px;
         }
-
-        .sidebar a:hover i {
+        
+        .sidebar-menu a.active {
+            background: var(--primary-light);
+            border-right: 4px solid white;
+        }
+        
+        .sidebar-menu i {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        
+        .sidebar-menu a:hover i {
             transform: translateX(3px);
         }
-
-        .sidebar a.active {
-            background: #60ad5e;
-            color: #fff;
-            border-right: 6px solid #388e3c;
-        }
-
-        /* Top Bar styles */
-        .top-bar {
-            width: calc(100% - 260px);
-            height: 65px;
-            background-color: #2e7d32;
-            color: #fff;
+        
+        /* Header */
+        .header {
+            grid-area: header;
+            background: white;
+            padding: 15px 30px;
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-left: 260px;
             justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 90;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 15px rgba(46, 125, 50, 0.1);
-            border-bottom: 2px solid #60ad5e;
-            letter-spacing: 0.5px;
         }
-
-        .top-bar span {
-            color: #fff;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        
+        .header-expanded {
+            margin-left: 260px;
         }
-
-        /* Notification Bell */
-        .notification-bell {
-            position: relative;
+        
+        .header-title {
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: var(--primary);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            color: var(--primary);
             cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.1);
-            margin-left: 15px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s;
         }
-
-        .notification-bell:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
+        
+        .toggle-sidebar:hover {
+            background: var(--surface-light);
         }
-
-        .notification-bell i {
-            font-size: 1.3rem;
-            color: #fff;
+        
+        .welcome-message {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: var(--text-medium);
         }
-
+        
+        .welcome-message i {
+            color: var(--primary);
+        }
+        
+        .notifications {
+            position: relative;
+        }
+        
+        .notification-btn {
+            background: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary);
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .notification-btn:hover {
+            background: var(--surface-light);
+        }
+        
         .notification-count {
             position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #ff4444;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
             color: white;
             border-radius: 50%;
-            min-width: 20px;
+            width: 20px;
             height: 20px;
-            padding: 0 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.7rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 5px rgba(255, 68, 68, 0.3);
             animation: pulse 2s infinite;
         }
-
+        
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
         }
-
-        /* Toggle Button */
-        .toggle-btn {
-            position: fixed;
-            left: 260px;
-            top: 20px;
-            background: #fff;
-            color: #1976d2;
-            border: none;
-            width: 35px;
-            height: 35px;
-            padding: 0;
-            border-radius: 50%;
-            box-shadow: 0 2px 10px rgba(1, 31, 75, 0.15);
-            cursor: pointer;
-            z-index: 1100;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .toggle-btn:hover {
-            background: #e3f0fc;
-        }
-
+        
         /* Main Content */
         .main-content {
-            margin-left: 260px;
-            padding: 20px;
-            padding-top: 85px;
-            transition: margin-left 0.3s ease;
-        }
-
-        /* Appointment Form Container */
-        .appointment-container {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 2.5rem 2rem;
-            background-color: #fff;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px 0 rgba(25, 118, 210, 0.22);
-            border: 1.5px solid #e3f0fc;
-            border-left: 6px solid #1976d2;
-        }
-
-        .appointment-header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-            position: relative;
-        }
-
-        .appointment-header h2 {
-            color: #011f4b;
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .appointment-header::after {
-            content: '';
-            position: absolute;
-            bottom: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 4px;
-            background: linear-gradient(90deg, #1976d2, #64b5f6);
-            border-radius: 2px;
-        }
-
-        .form-floating {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-control {
-            border: 1px solid #e3f0fc;
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-            font-size: 1rem;
+            grid-area: main;
+            padding: 30px;
             transition: all 0.3s ease;
         }
-
-        .form-control:focus {
-            border-color: #1976d2;
-            box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.15);
+        
+        .main-expanded {
+            margin-left: 260px;
         }
-
-        .form-floating label {
-            color: #666;
+        
+        /* Appointment Page */
+        .appointment-card {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .appointment-header {
+            background: var(--primary);
+            padding: 25px 30px;
+            color: white;
+        }
+        
+        .appointment-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .appointment-header p {
+            margin: 5px 0 0;
+            opacity: 0.9;
             font-size: 0.95rem;
         }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #1976d2, #2196f3);
-            border: none;
-            padding: 12px 28px;
-            border-radius: 10px;
-            font-weight: 500;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(25, 118, 210, 0.2);
+        
+        .appointment-body {
+            padding: 30px;
         }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #1565c0, #1976d2);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(25, 118, 210, 0.3);
+        
+        /* Date Picker */
+        .date-section {
+            background: var(--surface-light);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            margin-bottom: 30px;
         }
-
-        /* Doctors List Styling */
-        .doctors-section {
-            margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid #e3f0fc;
-        }
-
-        .doctors-section h3 {
-            color: #011f4b;
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-            text-align: center;
+        
+        .date-section h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
             font-weight: 600;
-        }
-
-        .doctors-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .doctor-card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e3f0fc;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .doctor-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(25, 118, 210, 0.15);
-            border-color: #1976d2;
-        }
-
-        .doctor-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: linear-gradient(to bottom, #1976d2, #64b5f6);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .doctor-card:hover::before {
-            opacity: 1;
-        }
-
-        .doctor-info {
+            color: var(--text-dark);
             display: flex;
             align-items: center;
-            margin-bottom: 1rem;
+            gap: 10px;
         }
-
-        .doctor-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #e3f0fc;
+        
+        .date-section h2 i {
+            color: var(--secondary);
+        }
+        
+        .date-picker {
+            background: white;
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .date-form label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-medium);
+        }
+        
+        .date-input {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 1rem;
+            border: 1px solid var(--surface-medium);
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+        
+        .date-input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+            outline: none;
+        }
+        
+        .search-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-weight: 500;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1rem;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
         }
-
-        .doctor-avatar i {
-            font-size: 1.8rem;
-            color: #1976d2;
+        
+        .search-btn:hover {
+            background: var(--secondary-dark);
+            transform: translateY(-2px);
         }
-
-        .doctor-details h4 {
+        
+        /* Doctors Section */
+        .doctors-section {
+            margin-top: 20px;
+        }
+        
+        .doctors-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .doctors-header h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
             margin: 0;
-            color: #011f4b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .doctors-header h2 i {
+            color: var(--secondary);
+        }
+        
+        .doctors-count {
+            background: var(--surface-medium);
+            color: var(--text-medium);
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .doctors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .doctor-card {
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s;
+            border: 1px solid var(--surface-medium);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .doctor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--secondary-light);
+        }
+        
+        .doctor-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid var(--surface-light);
+        }
+        
+        .doctor-avatar {
+            width: 70px;
+            height: 70px;
+            background: var(--surface-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 2rem;
+            border: 2px solid var(--primary-light);
+        }
+        
+        .doctor-info h3 {
+            margin: 0 0 5px;
             font-size: 1.1rem;
             font-weight: 600;
+            color: var(--text-dark);
         }
-
-        .doctor-details p {
-            margin: 0.2rem 0 0;
-            color: #666;
+        
+        .doctor-specialty {
+            color: var(--text-medium);
             font-size: 0.9rem;
         }
-
-        .doctor-schedule {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid #e3f0fc;
-        }
-
-        .schedule-item {
+        
+        .doctor-body {
+            padding: 20px;
+            flex-grow: 1;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+        }
+        
+        .time-slots {
+            background: var(--surface-light);
+            border-radius: var(--radius-sm);
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .time-slots-header {
+            display: flex;
             align-items: center;
-            margin-bottom: 0.5rem;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .time-slots-title {
+            font-weight: 500;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .time-slots-title i {
+            color: var(--secondary);
+        }
+        
+        .available-tag {
+            background: var(--success);
+            color: white;
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        
+        .time-slot {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: var(--radius-sm);
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border: 1px solid var(--surface-medium);
+        }
+        
+        .time-slot-icon {
+            color: var(--secondary);
+            margin-right: 10px;
+        }
+        
+        .time-slot-range {
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+        
+        .book-btn {
+            margin-top: auto;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .book-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        /* Empty States */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+        
+        .empty-state-text {
+            color: var(--text-medium);
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        
+        .empty-state-subtext {
+            color: var(--text-light);
             font-size: 0.9rem;
         }
-
-        .schedule-time {
-            color: #1976d2;
-            font-weight: 500;
-        }
-
-        .schedule-status {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .status-available {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-
-        .status-busy {
-            background: #ffebee;
-            color: #c62828;
-        }
-
-        .no-doctors-message {
+        
+        /* Loading Spinner */
+        .loading-state {
             text-align: center;
-            padding: 2rem;
-            background: #f8f9fa;
-            border-radius: 10px;
-            color: #666;
+            padding: 40px 20px;
         }
-
-        .no-doctors-message i {
-            font-size: 2rem;
-            color: #1976d2;
-            margin-bottom: 1rem;
-            display: block;
-        }
-
-        /* Loading Animation */
-        .loading-spinner {
-            display: none;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .loading-spinner i {
-            font-size: 2rem;
-            color: #1976d2;
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--surface-medium);
+            border-top: 4px solid var(--secondary);
+            border-radius: 50%;
+            margin: 0 auto 20px;
             animation: spin 1s linear infinite;
         }
-
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* Responsive Adjustments */
-        @media (max-width: 768px) {
-            .appointment-container {
-                margin: 15px;
-                padding: 1.5rem;
+        
+        /* Notification Dropdown */
+        .notification-dropdown {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            width: 320px;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            overflow: hidden;
+            display: none;
+            animation: fadeInDown 0.3s;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
             }
-
-            .doctors-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .appointment-header h2 {
-                font-size: 1.5rem;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
-
-        /* Responsive Design */
+        
+        .notification-header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .notification-list {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        
+        .notification-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--surface-light);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .notification-item:hover {
+            background: var(--surface-light);
+        }
+        
+        .notification-icon {
+            color: var(--primary);
+            background: var(--surface-light);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .notification-content {
+            flex-grow: 1;
+        }
+        
+        .notification-message {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            line-height: 1.4;
+        }
+        
+        .notification-date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        .no-notifications {
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text-light);
+        }
+        
+        /* Modals */
+        .modal-content {
+            border-radius: var(--radius-md);
+            border: none;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background: var(--primary);
+            color: white;
+            border-bottom: none;
+            padding: 20px 25px;
+        }
+        
+        .modal-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .modal-body {
+            padding: 25px;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid var(--surface-light);
+            padding: 15px 25px;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: var(--text-medium);
+            margin-bottom: 8px;
+        }
+        
+        .form-control {
+            border: 1px solid var(--surface-medium);
+            border-radius: var(--radius-sm);
+            padding: 10px 15px;
+            transition: all 0.2s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+        }
+        
+        .form-control:read-only {
+            background: var(--surface-light);
+        }
+        
+        /* Responsive */
         @media (max-width: 992px) {
             .sidebar {
                 transform: translateX(-260px);
             }
-            .sidebar.expanded {
-                transform: translateX(0);
+            
+            .header, .main-content {
+                margin-left: 0 !important;
             }
-            .toggle-btn {
-                left: 20px;
+            
+            .app-container {
+                grid-template-columns: 1fr;
             }
-            .toggle-btn.expanded {
-                left: 260px;
+            
+            .toggle-sidebar {
+                display: flex;
             }
-            .top-bar {
-                margin-left: 0;
-                width: 100%;
+            
+            .doctors-grid {
+                grid-template-columns: 1fr;
             }
+        }
+        
+        @media (max-width: 576px) {
+            .header {
+                padding: 15px;
+            }
+            
+            .header-title {
+                font-size: 1.2rem;
+            }
+            
+            .welcome-message span {
+                display: none;
+            }
+            
             .main-content {
-                margin-left: 0;
+                padding: 15px;
             }
-        }
-
-        .notification-dropdown {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
-            max-height: 400px;
-            min-width: 200px;
-            width: 90vw;
-            max-width: 270px;
-            overflow-y: auto;
-            padding: 0;
-            border: 1.5px solid #e3f0fc;
-            animation: fadeIn 0.2s;
-            right: 0;
-            left: auto;
-            font-size: 1rem;
-        }
-        @media (max-width: 400px) {
+            
+            .appointment-header {
+                padding: 20px;
+            }
+            
+            .appointment-body {
+                padding: 20px;
+            }
+            
+            .date-section {
+                padding: 15px;
+            }
+            
             .notification-dropdown {
-                min-width: 0;
-                width: 98vw;
-                max-width: 98vw;
-                font-size: 0.95rem;
-                padding: 0;
+                width: 100%;
+                max-width: 320px;
+                right: -15px;
             }
-            .notification-dropdown .dropdown-header {
-                font-size: 1rem;
-                padding: 10px 10px;
-            }
-            .notification-dropdown .dropdown-item {
-                padding: 10px 10px;
-                font-size: 0.93rem;
-            }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px);}
-            to { opacity: 1; transform: translateY(0);}
-        }
-        .notification-dropdown .dropdown-header {
-            background: #1976d2;
-            color: #fff;
-            font-weight: 600;
-            padding: 14px 18px;
-            border-radius: 12px 12px 0 0;
-            font-size: 1.1rem;
-            letter-spacing: 0.5px;
-        }
-        .notification-dropdown .dropdown-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 14px 18px;
-            border-bottom: 1px solid #f0f4fa;
-            font-size: 0.98rem;
-            background: #fff;
-            transition: background 0.2s;
-        }
-        .notification-dropdown .dropdown-item:last-child {
-            border-bottom: none;
-        }
-        .notification-dropdown .dropdown-item:hover {
-            background: #f4f8fd;
-        }
-        .notification-dropdown .notif-icon {
-            color: #1976d2;
-            font-size: 1.3rem;
-            margin-top: 2px;
-        }
-        .notification-dropdown .notif-message {
-            flex: 1;
-            color: #222;
-            font-size: 0.92rem;
-            font-weight: 500;
-            line-height: 1.4;
-            word-break: break-word;
-        }
-        .notification-dropdown .notif-date {
-            color: #888;
-            font-size: 0.82rem;
-            margin-top: 2px;
-            font-weight: 400;
-        }
-        .notification-dropdown .no-notif {
-            text-align: center;
-            color: #aaa;
-            padding: 30px 0;
-            font-size: 1rem;
         }
     </style>
 </head>
 <body>
-    <button class="toggle-btn" id="sidebarToggle" aria-label="Toggle sidebar">
-        <i class="bi bi-chevron-double-right"></i>
-    </button>
-
-    <div class="sidebar" id="sidebar">
-        <img src="img/GCLINIC.png" alt="Logo">
-        <div class="sidebar-divider"></div>
-        <a href="studentHome.php"><i class="bi bi-house"></i> Home</a>
-        <a href="doctors.php"><i class="bi bi-person-square"></i> Doctors</a>
-        <a href="appointment.php" class="active"><i class="bi bi-journal-plus"></i> Schedule Appointment</a>
-        <a href="schedule.php"><i class="bi bi-journal-arrow-down"></i> My Appointments</a>
-        <a href="services.php"><i class="bi bi-journal-album"></i> Service</a>
-        <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </div>
-
-    <div class="top-bar">
-        <span>Medical Clinic Notify+</span>
-        <div class="d-flex align-items-center">
-            <div class="welcome-text">
-                <i class="bi bi-person-circle"></i>
-                Welcome, <?php echo htmlspecialchars($student_data['FirstName']); ?>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
             </div>
-            <div class="notification-bell" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Notifications" style="position: relative;">
-                <i class="bi bi-bell-fill"></i>
-                <?php if ($notifications->num_rows > 0): ?>
-                    <span class="notification-count"><?php echo $notifications->num_rows; ?></span>
-                <?php endif; ?>
-                <div class="dropdown-menu notification-dropdown" id="notificationDropdown" style="display: none; position: absolute; right: 0; top: 40px; z-index: 3000;">
-                    <div class="dropdown-header">Notifications</div>
-                    <?php if ($notifications->num_rows > 0): ?>
-                        <?php foreach ($notifications as $notif): ?>
-                            <div class="dropdown-item notification-item" data-id="<?php echo $notif['notificationID']; ?>">
-                                <span class="notif-icon"><i class="bi bi-info-circle-fill"></i></span>
-                                <div class="notif-message">
-                                    <?php echo htmlspecialchars($notif['message']); ?>
-                                    <div class="notif-date"><?php echo date('M d, Y h:i A', strtotime($notif['created_at'] ?? '')); ?></div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="no-notif">No new notifications.</div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="main-content">
-        <div class="appointment-container">
-            <div class="appointment-header">
-                <h2>Schedule an Appointment</h2>
+            <div class="sidebar-divider"></div>
+            <ul class="sidebar-menu">
+                <li><a href="studentDashboard.php"><i class="bi bi-house"></i> Home</a></li>
+                <li><a href="studentHome.php"><i class="bi bi-person"></i> Profile</a></li>
+                <li><a href="appointment.php" class="active"><i class="bi bi-journal-plus"></i> Schedule Appointment</a></li>
+                <li><a href="schedule.php"><i class="bi bi-journal-arrow-down"></i> My Appointments</a></li>
+                <li><a href="services.php"><i class="bi bi-journal-album"></i> Service</a></li>
+                <li><a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+            </ul>
+        </aside>
+        
+        <!-- Header -->
+        <header class="header header-expanded" id="header">
+            <div class="d-flex align-items-center">
+                <button class="toggle-sidebar me-3" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="header-title">Medical Clinic Notify+</h1>
             </div>
             
-            <form id="dateForm" class="needs-validation" novalidate>
-                <div class="form-floating mb-4">
-                    <input type="date" class="form-control" id="getDayWeek" required>
-                    <label for="getDayWeek">Select Date</label>
-                    <div class="invalid-feedback">Please select a date</div>
+            <div class="header-actions">
+                <div class="welcome-message">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Welcome, <?php echo htmlspecialchars($student_data['firstName'] ?? 'Student'); ?></span>
                 </div>
                 
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-calendar-check me-2"></i>Find Available Doctors
+                <div class="notifications">
+                    <button class="notification-btn" id="notificationBtn">
+                        <i class="bi bi-bell-fill"></i>
+                        <?php if ($notifications->num_rows > 0): ?>
+                            <span class="notification-count"><?php echo $notifications->num_rows; ?></span>
+                        <?php endif; ?>
                     </button>
-                </div>
-            </form>
-
-            <div class="loading-spinner">
-                <i class="bi bi-arrow-repeat"></i>
-                <p class="mt-2">Loading available doctors...</p>
-            </div>
-
-            <div class="doctors-section">
-                <h3>Available Doctors</h3>
-                <div id="filteredDoctors">
-                    <div class="no-doctors-message">
-                        <i class="bi bi-calendar-x"></i>
-                        <p>Please select a date to view available doctors.</p>
+                    
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-header">
+                            <i class="bi bi-bell"></i> Notifications
+                        </div>
+                        <div class="notification-list">
+                            <?php if ($notifications->num_rows > 0): ?>
+                                <?php foreach ($notifications as $notif): ?>
+                                    <div class="notification-item" data-id="<?php echo $notif['notificationID']; ?>">
+                                        <div class="notification-icon">
+                                            <i class="bi bi-info-circle"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-message"><?php echo htmlspecialchars($notif['message']); ?></div>
+                                            <div class="notification-date"><?php echo date('M d, Y h:i A', strtotime($notif['created_at'] ?? '')); ?></div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="no-notifications">
+                                    <i class="bi bi-bell-slash mb-2"></i>
+                                    <p>No new notifications</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="myModal" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content"></div>
-        </div>
-    </div>
-
-    <!-- Booking Result Modal -->
-    <div class="modal fade" id="bookingResultModal" tabindex="-1" aria-labelledby="bookingResultModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="bookingResultModalLabel">Appointment Status</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content main-expanded" id="mainContent">
+            <div class="appointment-card">
+                <div class="appointment-header">
+                    <h1>Schedule an Appointment</h1>
+                    <p>Select a date and find available doctors</p>
                 </div>
-                <div class="modal-body" id="bookingResultMessage">
-                    <!-- Message will be inserted here -->
+                
+                <div class="appointment-body">
+                    <!-- Date Picker Section -->
+                    <div class="date-section">
+                        <h2><i class="bi bi-calendar3"></i> Select Appointment Date</h2>
+                        
+                        <div class="date-picker">
+                            <form id="dateForm" class="date-form">
+                                <label for="getDayWeek">Choose a date for your appointment</label>
+                                <input type="date" id="getDayWeek" class="date-input" min="<?php echo date('Y-m-d'); ?>" required>
+                                
+                                <button type="submit" class="search-btn">
+                                    <i class="bi bi-search"></i> Find Available Doctors
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div class="loading-state" id="loadingState" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Finding available doctors...</p>
+                    </div>
+                    
+                    <!-- Doctors Section -->
+                    <div class="doctors-section" id="doctorsSection">
+                        <div class="doctors-header">
+                            <h2><i class="bi bi-person-badge"></i> Available Doctors</h2>
+                            <span class="doctors-count" id="doctorsCount" style="display: none;">0 found</span>
+                        </div>
+                        
+                        <div id="filteredDoctors">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="bi bi-calendar-plus"></i></div>
+                                <h3 class="empty-state-text">Select a Date to Begin</h3>
+                                <p class="empty-state-subtext">Choose a date to see available doctors for appointment</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
-
+    
     <!-- Appointment Reason Modal -->
     <div class="modal fade" id="appointmentReasonModal" tabindex="-1" aria-labelledby="appointmentReasonModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -717,96 +942,150 @@ $notifications = $notificationStmt->get_result();
                         </div>
                         <div class="mb-3">
                             <label for="modalAppointmentReason" class="form-label">Reason for Appointment</label>
-                            <textarea class="form-control" id="modalAppointmentReason" rows="2" required></textarea>
-                            <div class="invalid-feedback">Please enter a reason.</div>
+                            <textarea class="form-control" id="modalAppointmentReason" rows="3" required></textarea>
+                            <div class="invalid-feedback">Please enter a reason for your appointment.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Confirm Booking</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-
-    <?php include 'appointmentModal.html'; ?>
-
+    
+    <!-- Booking Result Modal -->
+    <div class="modal fade" id="bookingResultModal" tabindex="-1" aria-labelledby="bookingResultModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bookingResultModalLabel">Appointment Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="bookingResultMessage">
+                    <!-- Message will be inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
             const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            const mainContent = document.querySelector('.main-content');
-            const topBar = document.querySelector('.top-bar');
+            const header = document.getElementById('header');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarToggle = document.getElementById('sidebarToggle');
             const dateForm = document.getElementById('dateForm');
-            const loadingSpinner = document.querySelector('.loading-spinner');
+            const loadingState = document.getElementById('loadingState');
             const filteredDoctors = document.getElementById('filteredDoctors');
-            const bell = document.querySelector('.notification-bell');
-            const dropdown = document.getElementById('notificationDropdown');
-            const notifCount = document.querySelector('.notification-count');
-
-            // Function to update sidebar state
-            function updateSidebarState(isCollapsed) {
-                if (isCollapsed) {
-                    sidebar.style.transform = 'translateX(-260px)';
-                    mainContent.style.marginLeft = '0';
-                    topBar.style.marginLeft = '0';
-                    topBar.style.width = '100%';
-                    toggleBtn.style.left = '20px';
-                    toggleBtn.innerHTML = '<i class="bi bi-chevron-double-right"></i>';
+            const doctorsCount = document.getElementById('doctorsCount');
+            const notificationBtn = document.getElementById('notificationBtn');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            
+            // Toggle Sidebar
+            function toggleSidebar() {
+                const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                
+                if (isSidebarCollapsed) {
+                    sidebar.classList.remove('sidebar-collapsed');
+                    header.classList.add('header-expanded');
+                    mainContent.classList.add('main-expanded');
                 } else {
-                    sidebar.style.transform = 'translateX(0)';
-                    mainContent.style.marginLeft = '260px';
-                    topBar.style.marginLeft = '260px';
-                    topBar.style.width = 'calc(100% - 260px)';
-                    toggleBtn.style.left = '260px';
-                    toggleBtn.innerHTML = '<i class="bi bi-chevron-double-left"></i>';
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
                 }
             }
-
-            // Initial state based on screen size
+            
+            // Set initial state based on screen size
             function setInitialState() {
                 if (window.innerWidth <= 992) {
-                    updateSidebarState(true);
-                } else {
-                    updateSidebarState(false);
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
                 }
             }
-
-            // Toggle button click handler
-            toggleBtn.addEventListener('click', function() {
-                const isCurrentlyCollapsed = sidebar.style.transform === 'translateX(-260px)';
-                updateSidebarState(!isCurrentlyCollapsed);
-            });
-
+            
+            // Toggle sidebar event
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            
             // Handle window resize
             window.addEventListener('resize', function() {
                 if (window.innerWidth <= 992) {
-                    updateSidebarState(true);
-                } else {
-                    updateSidebarState(false);
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
                 }
             });
-
-            // Set initial state
-            setInitialState();
-
-            // Form submission handling
-            dateForm.addEventListener('submit', function(event) {
-                event.preventDefault();
-                if (!dateForm.checkValidity()) {
-                    event.stopPropagation();
-                    dateForm.classList.add('was-validated');
+            
+            // Notification dropdown toggle
+            notificationBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                notificationDropdown.style.display = notificationDropdown.style.display === 'block' ? 'none' : 'block';
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function() {
+                notificationDropdown.style.display = 'none';
+            });
+            
+            // Mark notification as read
+            document.querySelectorAll('.notification-item').forEach(function(item) {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const notifId = this.getAttribute('data-id');
+                    
+                    fetch('mark_notification_read.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: 'notification_id=' + encodeURIComponent(notifId)
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        // Remove notification from list
+                        this.remove();
+                        
+                        // Update count
+                        const countElement = document.querySelector('.notification-count');
+                        if (countElement) {
+                            let count = parseInt(countElement.textContent, 10);
+                            if (count > 1) {
+                                countElement.textContent = count - 1;
+                            } else {
+                                countElement.remove();
+                                const noNotif = document.createElement('div');
+                                noNotif.className = 'no-notifications';
+                                noNotif.innerHTML = '<i class="bi bi-bell-slash mb-2"></i><p>No new notifications</p>';
+                                document.querySelector('.notification-list').innerHTML = '';
+                                document.querySelector('.notification-list').appendChild(noNotif);
+                            }
+                        }
+                    });
+                });
+            });
+            
+            // Date form submission
+            dateForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const selectedDate = document.getElementById('getDayWeek').value;
+                if (!selectedDate) {
+                    alert('Please select a date');
                     return;
                 }
-
-                const selectedDate = document.getElementById('getDayWeek').value;
                 
-                // Show loading spinner
-                loadingSpinner.style.display = 'block';
+                // Show loading state
+                loadingState.style.display = 'block';
                 filteredDoctors.innerHTML = '';
-
-                // Make AJAX request to fetch available doctors
+                doctorsCount.style.display = 'none';
+                
+                // Fetch available doctors
                 fetch('get_available_doctors.php', {
                     method: 'POST',
                     headers: {
@@ -816,148 +1095,177 @@ $notifications = $notificationStmt->get_result();
                 })
                 .then(response => response.json())
                 .then(data => {
-                    loadingSpinner.style.display = 'none';
+                    // Hide loading state
+                    loadingState.style.display = 'none';
                     
                     if (!data.success) {
                         filteredDoctors.innerHTML = `
-                            <div class="no-doctors-message">
-                                <i class="bi bi-exclamation-circle"></i>
-                                <p>${data.error}</p>
-                                ${data.debug ? `<small class="text-muted">Debug info: ${JSON.stringify(data.debug)}</small>` : ''}
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="bi bi-exclamation-circle"></i></div>
+                                <h3 class="empty-state-text">Error</h3>
+                                <p class="empty-state-subtext">${data.error}</p>
                             </div>
                         `;
                         return;
                     }
-
+                    
                     const doctors = data.doctors;
+                    
+                    // Update doctors count
+                    doctorsCount.textContent = doctors.length + ' found';
+                    doctorsCount.style.display = 'block';
                     
                     if (doctors.length === 0) {
                         filteredDoctors.innerHTML = `
-                            <div class="no-doctors-message">
-                                <i class="bi bi-calendar-x"></i>
-                                <p>No doctors available for the selected date.</p>
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="bi bi-calendar-x"></i></div>
+                                <h3 class="empty-state-text">No Doctors Available</h3>
+                                <p class="empty-state-subtext">There are no doctors available on the selected date. Please try another date.</p>
                             </div>
                         `;
                         return;
                     }
-
+                    
                     // Create doctors grid
                     const doctorsGrid = document.createElement('div');
                     doctorsGrid.className = 'doctors-grid';
-
+                    
                     // Add each doctor to the grid
                     doctors.forEach(doctor => {
                         const doctorCard = document.createElement('div');
                         doctorCard.className = 'doctor-card';
                         doctorCard.innerHTML = `
-                            <div class="doctor-info">
+                            <div class="doctor-header">
                                 <div class="doctor-avatar">
-                                    <i class="bi bi-person-circle"></i>
+                                    <i class="bi bi-person"></i>
                                 </div>
-                                <div class="doctor-details">
-                                    <h4>Dr. ${doctor.FirstName} ${doctor.LastName}</h4>
-                                    <p>${doctor.Specialization}</p>
-                                </div>
-                            </div>
-                            <div class="doctor-schedule">
-                                <div class="schedule-item">
-                                    <span class="schedule-time">${to12HourRange(doctor.ScheduleTime)}</span>
-                                    <span class="schedule-status status-available">Available</span>
+                                <div class="doctor-info">
+                                    <h3>Dr. ${doctor.FirstName} ${doctor.LastName}</h3>
+                                    <div class="doctor-specialty">${doctor.Specialization}</div>
                                 </div>
                             </div>
-                            <button class="btn btn-primary w-100 mt-3"
-                                onclick="bookAppointment('${doctor.DoctorID}', '${doctor.SlotID}', '${selectedDate}', '${doctor.ScheduleTime}')">
-                                <i class="bi bi-calendar-plus me-2"></i>Book Appointment
-                            </button>
+                            <div class="doctor-body">
+                                <div class="time-slots">
+                                    <div class="time-slots-header">
+                                        <div class="time-slots-title">
+                                            <i class="bi bi-clock"></i> Available Time
+                                        </div>
+                                        <div class="available-tag">Available</div>
+                                    </div>
+                                    <div class="time-slot">
+                                        <i class="bi bi-clock time-slot-icon"></i>
+                                        <span class="time-slot-range">${to12HourRange(doctor.ScheduleTime)}</span>
+                                    </div>
+                                </div>
+                                <button class="book-btn" onclick="bookAppointment('${doctor.DoctorID}', '${doctor.SlotID}', '${selectedDate}', '${doctor.ScheduleTime}')">
+                                    <i class="bi bi-calendar-plus"></i> Book Appointment
+                                </button>
+                            </div>
                         `;
                         doctorsGrid.appendChild(doctorCard);
                     });
-
+                    
                     filteredDoctors.innerHTML = '';
                     filteredDoctors.appendChild(doctorsGrid);
                 })
                 .catch(error => {
-                    loadingSpinner.style.display = 'none';
+                    loadingState.style.display = 'none';
                     filteredDoctors.innerHTML = `
-                        <div class="no-doctors-message">
-                            <i class="bi bi-exclamation-circle"></i>
-                            <p>Error loading doctors. Please try again.</p>
-                            <small class="text-muted">Error details: ${error.message}</small>
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                            <h3 class="empty-state-text">Something Went Wrong</h3>
+                            <p class="empty-state-subtext">There was an error loading doctors. Please try again.</p>
                         </div>
                     `;
                     console.error('Error:', error);
                 });
             });
-
-            // Initialize tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
+            
+            // Set minimum date for appointment selection
+            const dateInput = document.getElementById('getDayWeek');
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            // Format the date as YYYY-MM-DD
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+            
+            // Set tomorrow as the minimum date (to ensure available slots)
+            dateInput.min = formatDate(tomorrow);
+            
+            // Set default value to tomorrow
+            dateInput.value = formatDate(tomorrow);
+            
+            // Add date validation
+            dateInput.addEventListener('change', function() {
+                const selectedDate = new Date(this.value);
+                selectedDate.setHours(0, 0, 0, 0);
+                
+                const todayDate = new Date();
+                todayDate.setHours(0, 0, 0, 0);
+                
+                if (selectedDate < todayDate) {
+                    alert('Please select a current or future date');
+                    this.value = formatDate(tomorrow);
+                }
             });
-
-            bell.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-            });
-
-            // Hide dropdown when clicking outside
-            document.addEventListener('click', function() {
-                dropdown.style.display = 'none';
-            });
-
-            // Mark notification as read on click
-            document.querySelectorAll('.notification-item').forEach(function(item) {
-                item.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const notifId = this.getAttribute('data-id');
-                    fetch('mark_notification_read.php', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                        body: 'notification_id=' + encodeURIComponent(notifId)
-                    }).then(response => response.text()).then(data => {
-                        // Remove the notification from the dropdown
-                        this.remove();
-                        // Update the count
-                        let count = parseInt(notifCount.textContent, 10);
-                        if (count > 1) {
-                            notifCount.textContent = count - 1;
-                        } else {
-                            notifCount.remove();
-                            dropdown.querySelector('.dropdown-header').insertAdjacentHTML('afterend', '<div class="no-notif">No new notifications.</div>');
-                        }
-                    });
-                });
-            });
+            
+            // Set initial state
+            setInitialState();
         });
-
+        
         // Store booking info globally for modal use
         let bookingInfo = {};
-
+        
+        // Book appointment function
         function bookAppointment(doctorId, slotId, date, time) {
-            // Find doctor name from the card (or pass as argument if you prefer)
+            // Find doctor name from the card
             const doctorCard = event.target.closest('.doctor-card');
-            const doctorName = doctorCard.querySelector('.doctor-details h4').textContent;
-
+            const doctorName = doctorCard.querySelector('.doctor-info h3').textContent;
+            
             bookingInfo = { doctorId, slotId, date, time, doctorName };
-
+            
             // Fill modal fields
             document.getElementById('modalDoctorName').value = doctorName;
             document.getElementById('modalAppointmentDate').value = date;
-            document.getElementById('modalAppointmentTime').value = time;
+            document.getElementById('modalAppointmentTime').value = to12HourRange(time);
             document.getElementById('modalAppointmentReason').value = '';
-
+            
             // Show modal
             var reasonModal = new bootstrap.Modal(document.getElementById('appointmentReasonModal'));
             reasonModal.show();
         }
-
-        // Handle modal form submission
+        
+        // Convert time to 12-hour format
+        function to12HourRange(timeRange) {
+            if (!timeRange) return '';
+            const [start, end] = timeRange.split('-');
+            return `${to12Hour(start)} - ${to12Hour(end)}`;
+        }
+        
+        function to12Hour(time) {
+            if (!time) return '';
+            const [hour, minute] = time.split(':');
+            let h = parseInt(hour, 10);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            if (h === 0) h = 12;
+            return `${h}:${minute} ${ampm}`;
+        }
+        
+        // Handle appointment reason form submission
         document.addEventListener('DOMContentLoaded', function() {
             const reasonForm = document.getElementById('appointmentReasonForm');
+            
             if (reasonForm) {
                 reasonForm.addEventListener('submit', function(e) {
                     e.preventDefault();
-
+                    
                     const reasonInput = document.getElementById('modalAppointmentReason');
                     if (!reasonInput.value.trim()) {
                         reasonInput.classList.add('is-invalid');
@@ -965,13 +1273,13 @@ $notifications = $notificationStmt->get_result();
                     } else {
                         reasonInput.classList.remove('is-invalid');
                     }
-
+                    
                     // Hide modal
                     var reasonModalEl = document.getElementById('appointmentReasonModal');
                     var reasonModal = bootstrap.Modal.getInstance(reasonModalEl);
                     reasonModal.hide();
-
-                    // Send AJAX request
+                    
+                    // Submit appointment
                     fetch('submit_appointment.php', {
                         method: 'POST',
                         headers: {
@@ -991,11 +1299,12 @@ $notifications = $notificationStmt->get_result();
                         let message = '';
                         if (data.success) {
                             message = '<div class="alert alert-success mb-0">' + data.message + '</div>';
-                            // Refresh the available doctors after successful booking
+                            // Refresh available doctors
                             document.getElementById('dateForm').dispatchEvent(new Event('submit'));
                         } else {
                             message = '<div class="alert alert-danger mb-0">' + data.message + '</div>';
                         }
+                        
                         document.getElementById('bookingResultMessage').innerHTML = message;
                         var bookingModal = new bootstrap.Modal(document.getElementById('bookingResultModal'));
                         bookingModal.show();
@@ -1010,23 +1319,6 @@ $notifications = $notificationStmt->get_result();
                 });
             }
         });
-
-        // Add this function before the doctors.forEach loop
-        function to12HourRange(timeRange) {
-            // Expects timeRange like "13:00-14:30"
-            if (!timeRange) return '';
-            const [start, end] = timeRange.split('-');
-            return `${to12Hour(start)} - ${to12Hour(end)}`;
-        }
-        function to12Hour(time) {
-            // Expects time like "13:00"
-            const [hour, minute] = time.split(':');
-            let h = parseInt(hour, 10);
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            h = h % 12;
-            if (h === 0) h = 12;
-            return `${h}:${minute} ${ampm}`;
-        }
     </script>
 </body>
 </html>

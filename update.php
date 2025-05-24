@@ -33,7 +33,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $contactNumber = $conn->real_escape_string($_POST['contactNumber']);
     $parentGuardian = $conn->real_escape_string($_POST['parentGuardian']);
     $parentContact = $conn->real_escape_string($_POST['parentContact']);
+    $emergencyContactName = $conn->real_escape_string($_POST['emergencyContactName'] ?? '');
+    $emergencyContactRelationship = $conn->real_escape_string($_POST['emergencyContactRelationship'] ?? '');
+    $emergencyContactNumber = $conn->real_escape_string($_POST['emergencyContactNumber'] ?? '');
+    $bloodType = $conn->real_escape_string($_POST['bloodType'] ?? '');
+    $allergies = $conn->real_escape_string($_POST['allergies'] ?? '');
+    $medicalConditions = $conn->real_escape_string($_POST['medicalConditions'] ?? '');
+    $medications = $conn->real_escape_string($_POST['medications'] ?? '');
     
+    // Handle profile photo upload
+    $profilePhotoPath = $user['profilePhoto']; // Default to current photo
+    if (isset($_FILES['profilePhoto']) && $_FILES['profilePhoto']['error'] === UPLOAD_ERR_OK) {
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+        if (in_array($_FILES['profilePhoto']['type'], $allowedTypes) && $_FILES['profilePhoto']['size'] <= 2 * 1024 * 1024) {
+            $ext = pathinfo($_FILES['profilePhoto']['name'], PATHINFO_EXTENSION);
+            $newFileName = 'uploads/profile_' . $studentID . '_' . time() . '.' . $ext;
+            if (move_uploaded_file($_FILES['profilePhoto']['tmp_name'], $newFileName)) {
+                $profilePhotoPath = $newFileName;
+            }
+        }
+    }
+
     // Handle password update
     $passwordUpdate = "";
     if (!empty($_POST['password'])) {
@@ -41,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $passwordUpdate = ", password = '$password'";
     }
 
-    // Update query - now including address
+    // Update query - now including profilePhoto
     $updateQuery = "UPDATE students SET 
                     FirstName = '$firstName',
                     LastName = '$lastName',
@@ -50,7 +70,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     GENDER = '$gender',
                     ContactNumber = '$contactNumber',
                     parentGuardian = '$parentGuardian',
-                    parentContact = '$parentContact'
+                    parentContact = '$parentContact',
+                    emergencyContactName = '$emergencyContactName',
+                    emergencyContactRelationship = '$emergencyContactRelationship',
+                    emergencyContactNumber = '$emergencyContactNumber',
+                    bloodType = '$bloodType',
+                    allergies = '$allergies',
+                    medicalConditions = '$medicalConditions',
+                    medications = '$medications',
+                    profilePhoto = '$profilePhotoPath'
                     $passwordUpdate
                     WHERE StudentID = '$studentID'";
 
@@ -230,6 +258,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label for="parentContact">Parent/Guardian Contact Info</label>
             <input type="number" id="parentContact" name="parentContact" value="<?= htmlspecialchars($user['parentContact'] ?? '') ?>" required>
 
+            <label for="emergencyContactName">Emergency Contact Name</label>
+            <input type="text" id="emergencyContactName" name="emergencyContactName" value="<?= htmlspecialchars($user['emergencyContactName'] ?? '') ?>" required>
+
+            <label for="emergencyContactRelationship">Emergency Contact Relationship</label>
+            <input type="text" id="emergencyContactRelationship" name="emergencyContactRelationship" value="<?= htmlspecialchars($user['emergencyContactRelationship'] ?? '') ?>" required>
+
+            <label for="emergencyContactNumber">Emergency Contact Number</label>
+            <input type="number" id="emergencyContactNumber" name="emergencyContactNumber" value="<?= htmlspecialchars($user['emergencyContactNumber'] ?? '') ?>" required>
+
+            <label for="bloodType">Blood Type</label>
+            <input type="text" id="bloodType" name="bloodType" value="<?= htmlspecialchars($user['bloodType'] ?? '') ?>" required>
+
+            <label for="allergies">Allergies</label>
+            <input type="text" id="allergies" name="allergies" value="<?= htmlspecialchars($user['allergies'] ?? '') ?>" required>
+
+            <label for="medicalConditions">Medical Conditions</label>
+            <input type="text" id="medicalConditions" name="medicalConditions" value="<?= htmlspecialchars($user['medicalConditions'] ?? '') ?>" required>
+
+            <label for="medications">Medications</label>
+            <input type="text" id="medications" name="medications" value="<?= htmlspecialchars($user['medications'] ?? '') ?>" required>
+
             <label for="password">Password (leave blank to keep current)</label>
             <input type="password" id="password" name="password">
 
@@ -306,6 +355,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="emergencyContactName" name="emergencyContactName" required>
+                            <label for="emergencyContactName">Emergency Contact Name</label>
+                            <div class="invalid-feedback">Please enter emergency contact name</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="emergencyContactRelationship" name="emergencyContactRelationship" required>
+                            <label for="emergencyContactRelationship">Emergency Contact Relationship</label>
+                            <div class="invalid-feedback">Please enter emergency contact relationship</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="tel" class="form-control" id="emergencyContactNumber" name="emergencyContactNumber" required pattern="[0-9]{11}">
+                            <label for="emergencyContactNumber">Emergency Contact Number (11 digits)</label>
+                            <div class="invalid-feedback">Please enter a valid 11-digit emergency contact number</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="bloodType" name="bloodType" required>
+                            <label for="bloodType">Blood Type</label>
+                            <div class="invalid-feedback">Please enter blood type</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="allergies" name="allergies" required>
+                            <label for="allergies">Allergies</label>
+                            <div class="invalid-feedback">Please enter allergies</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="medicalConditions" name="medicalConditions" required>
+                            <label for="medicalConditions">Medical Conditions</label>
+                            <div class="invalid-feedback">Please enter medical conditions</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="medications" name="medications" required>
+                            <label for="medications">Medications</label>
+                            <div class="invalid-feedback">Please enter medications</div>
+                        </div>
+
+                        <div class="form-floating mb-3">
                             <input type="password" class="form-control" id="password" name="password">
                             <label for="password">New Password (leave blank to keep current)</label>
                         </div>
@@ -359,6 +450,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('contactNumber').value = userData.ContactNumber || '';
             document.getElementById('parentGuardian').value = userData.parentGuardian || '';
             document.getElementById('parentContact').value = userData.parentContact || '';
+            document.getElementById('emergencyContactName').value = userData.emergencyContactName || '';
+            document.getElementById('emergencyContactRelationship').value = userData.emergencyContactRelationship || '';
+            document.getElementById('emergencyContactNumber').value = userData.emergencyContactNumber || '';
+            document.getElementById('bloodType').value = userData.bloodType || '';
+            document.getElementById('allergies').value = userData.allergies || '';
+            document.getElementById('medicalConditions').value = userData.medicalConditions || '';
+            document.getElementById('medications').value = userData.medications || '';
             document.getElementById('password').value = '';
             
             updateProfileModal.show();

@@ -137,7 +137,7 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
         }
 
         /* Top Bar Part */
-        .top-bar {
+        .top-bar.custom-navbar {
             width: calc(100% - 260px);
             height: 65px;
             background-color: #2e7d32;
@@ -145,19 +145,103 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             display: flex;
             align-items: center;
             padding: 0 30px;
-            font-size: 1.4rem;
-            font-weight: 600;
+            font-size: 1.15rem;
+            font-weight: 400;
             margin-left: 260px;
             justify-content: space-between;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 15px rgba(46, 125, 50, 0.1);
-            border-bottom: 2px solid #60ad5e;
+            box-shadow: none;
+            border-bottom: none;
             letter-spacing: 0.5px;
         }
 
-        .top-bar span {
-            color: #fff;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .navbar-title {
+            font-size: 1.1em;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .navbar-user {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .navbar-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 110%;
+            min-width: 210px;
+            background: #fff;
+            color: #222;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
+            border: 1.5px solid #e3f0fc;
+            z-index: 9999;
+            font-size: 1rem;
+            padding: 0.5rem 0;
+        }
+
+        .navbar-dropdown.show {
+            display: block;
+        }
+
+        .navbar-dropdown .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            color: #222;
+            text-decoration: none;
+            background: none;
+            border: none;
+            width: 100%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .navbar-dropdown .dropdown-item:hover {
+            background: #f4f8fd;
+        }
+
+        .navbar-dropdown .dropdown-divider {
+            height: 1px;
+            background: #e3f0fc;
+            margin: 4px 0;
+            border: none;
+        }
+
+        .navbar-dropdown .notification-bell {
+            position: relative;
+            background: none;
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+        }
+
+        .navbar-dropdown .notification-count {
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            background: #ff4444;
+            color: white;
+            border-radius: 50%;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(255, 68, 68, 0.3);
+        }
+
+        .navbar-username {
+            text-transform: uppercase;
+            font-size: 1em;
+            font-weight: 400;
+            letter-spacing: 0.5px;
         }
 
         /* Notification Bell */
@@ -269,112 +353,209 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             transition: margin-left 0.3s ease;
         }
 
-        /* Profile Container Styles */
-        .profile-container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 8px 32px 0 rgba(25, 118, 210, 0.22), 0 2px 12px 0 rgba(1, 31, 75, 0.13);
-            border: 1.5px solid #e3f0fc;
-            border-left: 6px solid #1976d2;
+        .main-content {
+            margin-left: 260px;
+            padding: 0;
+            min-height: 100vh;
             background: #f6faff;
-            padding: 2.5rem 2rem 2rem 2rem !important;
         }
 
-        .profile-header {
-            text-align: center;
-            margin-bottom: 2rem;
+        /* Profile Header Bar */
+        .profile-header-bar {
+            background: #fff;
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 0;
+            border-bottom: 1px solid #e0e0e0;
         }
 
-        .profile-header .profile-image {
-            width: 100px;
-            height: 100px;
+        .profile-photo-container {
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
-            background: #1976d2;
+            overflow: hidden;
+            background: #e3f0fc;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
+            border: 3px solid #2e7d32;
+            flex-shrink: 0;
         }
 
-        .profile-header .profile-image i {
-            font-size: 3rem;
-            color: white;
-        }
-
-        .profile-header h2 {
-            color: #011f4b;
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .table {
+        .profile-photo-container img {
             width: 100%;
-            margin-bottom: 1.5rem;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-photo-container i {
+            font-size: 3rem;
+            color: #2e7d32;
+        }
+
+        .profile-header-info {
+            margin-left: 15px;
+            flex-grow: 1;
+        }
+
+        .profile-header-info h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2e7d32;
+        }
+
+        .profile-id-badge {
+            display: inline-block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-top: 3px;
+        }
+
+        .edit-profile-btn {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .edit-profile-btn:hover {
+            background: #1b5e20;
+            transform: translateY(-2px);
+        }
+
+        .profile-content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 15px;
+        }
+
+        .info-section {
             background: white;
-            border-radius: 8px;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             overflow: hidden;
         }
 
-        .table th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            padding: 1rem;
-            color: #011f4b;
-        }
-
-        .table td {
-            padding: 1rem;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .btn-primary {
-            background: #1976d2;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
+        .info-header {
+            background: #2e7d32;
+            color: white;
+            padding: 10px 15px;
             font-weight: 500;
-            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .btn-primary:hover {
-            background: #1565c0;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            padding: 15px;
         }
 
-        /* Responsive Design */
+        .info-item {
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 5px;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #333;
+            word-break: break-word;
+        }
+
+        /* Make Medical Information section full width */
+        .info-section:last-child {
+            grid-column: 1 / -1;
+        }
+
+        /* Responsive adjustments */
         @media (max-width: 992px) {
-            .sidebar {
-                transform: translateX(-260px);
+            .profile-content {
+                grid-template-columns: 1fr;
             }
-            .sidebar.expanded {
-                transform: translateX(0);
+            
+            .profile-header-bar {
+                flex-direction: column;
+                text-align: center;
+                padding: 15px;
             }
-            .toggle-btn {
-                left: 20px;
+            
+            .profile-header-info {
+                margin: 10px 0;
             }
-            .toggle-btn.expanded {
-                left: 260px;
-            }
-            .top-bar {
-                margin-left: 0;
-                width: 100%;
-            }
-            .main-content {
-                margin-left: 0;
+            
+            .edit-profile-btn {
+                margin-top: 10px;
             }
         }
 
-        @media (max-width: 768px) {
-            .profile-container {
-                margin: 15px;
-                padding: 1.5rem !important;
+        @media (max-width: 576px) {
+            .info-grid {
+                grid-template-columns: 1fr;
             }
-            .table th, .table td {
-                padding: 0.75rem;
+        }
+
+        /* Media queries for responsiveness */
+        @media (max-width: 992px) {
+            .profile-grid {
+                grid-template-columns: repeat(8, 1fr);
+            }
+            
+            .profile-photo-card {
+                grid-column: span 8;
+                grid-row: span 1;
+            }
+            
+            .profile-card:nth-child(2),
+            .profile-card:nth-child(3),
+            .profile-card:nth-child(4),
+            .profile-card:nth-child(5) {
+                grid-column: span 8;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .profile-header {
+                text-align: center;
+            }
+            
+            .card-header {
+                padding: 12px 15px;
+            }
+            
+            .card-body {
+                padding: 15px;
+            }
+            
+            .profile-title {
+                font-size: 1.5rem;
+            }
+            
+            .profile-action-card {
+                padding: 15px;
             }
         }
 
@@ -467,6 +648,39 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             padding: 30px 0;
             font-size: 1rem;
         }
+        .change-password-modal-content {
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
+            padding: 0 0 0 0;
+        }
+        #changePasswordModal .modal-header {
+            border-bottom: none;
+        }
+        #changePasswordModal .modal-title {
+            font-size: 1.3rem;
+        }
+        #changePasswordModal .form-label {
+            font-weight: 500;
+        }
+        #changePasswordModal .form-control {
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        #changePasswordModal .input-group .btn {
+            border-radius: 0 8px 8px 0;
+        }
+        #changePasswordModal .btn-primary {
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 1.08rem;
+            background: #2563eb;
+            border: none;
+        }
+        #changePasswordModal .btn-primary:disabled {
+            background: #e0e0e0;
+            color: #aaa;
+            border: none;
+        }
     </style>
 </head>
 <body>
@@ -477,102 +691,147 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
     <div class="sidebar" id="sidebar">
         <img src="img/GCLINIC.png" alt="Logo">
         <div class="sidebar-divider"></div>
-        <a href="studentHome.php" class="active"><i class="bi bi-house"></i> Home</a>
-        <a href="doctors.php"><i class="bi bi-person-square"></i> Doctors</a>
+        <a href="studentDashboard.php"><i class="bi bi-house"></i> Home</a>
+        <a href="studentHome.php" class="active"><i class="bi bi-person"></i> Profile</a>
         <a href="appointment.php"><i class="bi bi-journal-plus"></i> Schedule Appointment</a>
         <a href="schedule.php"><i class="bi bi-journal-arrow-down"></i> My Appointments</a>
         <a href="services.php"><i class="bi bi-journal-album"></i> Service</a>
         <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 
-    <div class="top-bar">
-        <span>Medical Clinic Notify+</span>
-        <div class="d-flex align-items-center">
-            <div class="welcome-text">
-                <i class="bi bi-person-circle"></i>
-                Welcome, <?php echo htmlspecialchars(($student_data['FirstName'] ?? '') . (isset($student_data['LastName']) ? ' ' . $student_data['LastName'] : '')); ?>
-            </div>
-            <div class="notification-bell" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Notifications" style="position: relative;">
-                <i class="bi bi-bell-fill"></i>
-                <?php if ($notifications->num_rows > 0): ?>
-                    <span class="notification-count"><?php echo $notifications->num_rows; ?></span>
-                <?php endif; ?>
-                <div class="dropdown-menu notification-dropdown" id="notificationDropdown" style="display: none; position: absolute; right: 0; top: 40px; z-index: 3000;">
-                    <div class="dropdown-header">Notifications</div>
+    <div class="top-bar custom-navbar">
+        <div class="navbar-title">Student Information System</div>
+        <div class="navbar-user" id="navbarUser">
+            <i class="bi bi-person-circle"></i>
+            <span class="navbar-username"><?php echo strtoupper(htmlspecialchars($student_data['name'] ?? '')); ?></span>
+            <i class="bi bi-caret-down-fill" style="font-size: 0.9em; margin-left: 4px;"></i>
+            <div class="navbar-dropdown" id="navbarDropdown">
+                <button class="dropdown-item notification-bell" type="button" id="notificationDropdownBtn">
+                    <i class="bi bi-bell-fill"></i>
+                    Notifications
                     <?php if ($notifications->num_rows > 0): ?>
-                        <?php foreach ($notifications as $notif): ?>
-                            <div class="dropdown-item notification-item" data-id="<?php echo $notif['notificationID']; ?>">
-                                <span class="notif-icon"><i class="bi bi-info-circle-fill"></i></span>
-                                <div class="notif-message">
-                                    <?php echo htmlspecialchars($notif['message']); ?>
-                                    <div class="notif-date"><?php echo date('M d, Y h:i A', strtotime($notif['created_at'] ?? '')); ?></div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="no-notif">No new notifications.</div>
+                        <span class="notification-count"><?php echo $notifications->num_rows; ?></span>
                     <?php endif; ?>
-                </div>
+                </button>
+                <hr class="dropdown-divider">
+                <button class="dropdown-item" id="openChangePasswordModal" type="button">
+                    <i class="bi bi-key"></i> Change Password
+                </button>
             </div>
         </div>
     </div>
 
-    <div class="main-content">
-        <div class="profile-container">
-            <div class="profile-header">
-                <div class="profile-image">
+    <div class="main-content" style="margin-left:260px; padding:0; min-height:100vh; background:#f6faff;">
+        <!-- Profile Header Bar -->
+        <div class="profile-header-bar">
+            <div class="profile-photo-container">
+                <?php if (!empty($student_data['profilePhoto']) && file_exists($student_data['profilePhoto'])): ?>
+                    <img src="<?php echo htmlspecialchars($student_data['profilePhoto']); ?>" alt="Profile Photo" class="profile-photo">
+                <?php else: ?>
                     <i class="bi bi-person-circle"></i>
-                </div>
-                <h2>Student Profile</h2>
+                <?php endif; ?>
             </div>
-            
-            <div class="table-responsive">
-                <table class="table">
-                    <tbody>
-                        <tr>
-                            <th style="width: 40%;">Student ID</th>
-                            <td><?php echo htmlspecialchars($student_data['StudentID'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Name</th>
-                            <td><?php echo htmlspecialchars((($student_data['FirstName'] ?? '') . ' ' . ($student_data['LastName'] ?? '')) ?: 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Date of Birth</th>
-                            <td><?php echo htmlspecialchars($student_data['dob'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Gender</th>
-                            <td><?php echo htmlspecialchars($student_data['GENDER'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Contact Number</th>
-                            <td><?php echo htmlspecialchars($student_data['ContactNumber'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Email</th>
-                            <td><?php echo htmlspecialchars($student_data['email'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Address</th>
-                            <td><?php echo htmlspecialchars($student_data['address'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Parent/Guardian</th>
-                            <td><?php echo htmlspecialchars($student_data['parentGuardian'] ?? 'N/A'); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Parent Contact</th>
-                            <td><?php echo htmlspecialchars($student_data['parentContact'] ?? 'N/A'); ?></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="profile-header-info">
+                <h2><?php echo htmlspecialchars(trim(($student_data['firstName'] ?? '') . ' ' . ($student_data['lastName'] ?? ''))); ?></h2>
+                <div class="profile-id-badge"><?php echo htmlspecialchars($student_data['studentID'] ?? ''); ?></div>
+            </div>
+            <button type="button" class="edit-profile-btn" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
+                <i class="bi bi-pencil-square"></i> Edit Profile
+            </button>
+        </div>
+
+        <!-- Profile Content Grid -->
+        <div class="profile-content">
+            <!-- Personal Information -->
+            <div class="info-section">
+                <div class="info-header">
+                    <i class="bi bi-person-badge"></i> Personal Information
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">College/Program</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['course'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Gender</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['gender'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Address</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['address'] ?? ''); ?></div>
+                    </div>
+                </div>
             </div>
 
-            <div class="text-center">
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
-                    <i class="bi bi-pencil-square me-2"></i>Update Profile
-                </button>
+            <!-- Contact Information -->
+            <div class="info-section">
+                <div class="info-header">
+                    <i class="bi bi-envelope"></i> Contact Information
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Email Address</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['email'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Alternate Email</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['altEmail'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Contact Number</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['contactNumber'] ?? ''); ?></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Contact -->
+            <div class="info-section">
+                <div class="info-header">
+                    <i class="bi bi-shield-plus"></i> Emergency Information
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Parent/Guardian</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['parentGuardian'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Parent Contact</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['parentContact'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Emergency Contact</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['emergencyContactName'] ?? ''); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Relationship</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['emergencyContactRelationship'] ?? ''); ?></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Information -->
+            <div class="info-section">
+                <div class="info-header">
+                    <i class="bi bi-heart-pulse"></i> Medical Information
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Blood Type</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['bloodType'] ?? 'Not specified'); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Allergies</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['allergies'] ?? 'None'); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Medical Conditions</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['medicalConditions'] ?? 'None'); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Medications</div>
+                        <div class="info-value"><?php echo htmlspecialchars($student_data['medications'] ?? 'None'); ?></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -586,18 +845,18 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                <form method="POST" action="update.php" id="updateProfileForm" class="needs-validation" novalidate>
+                <form method="POST" action="update.php" id="updateProfileForm" class="needs-validation" novalidate enctype="multipart/form-data">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" id="firstName" name="firstName" value="<?php echo htmlspecialchars($student_data['FirstName'] ?? ''); ?>" required>
+                                    <input type="text" class="form-control" id="firstName" name="firstName" value="<?php echo htmlspecialchars($student_data['firstName'] ?? ''); ?>" required>
                                     <label for="firstName">First Name</label>
                                     <div class="invalid-feedback">Please enter first name</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" id="lastName" name="lastName" value="<?php echo htmlspecialchars($student_data['LastName'] ?? ''); ?>" required>
+                                    <input type="text" class="form-control" id="lastName" name="lastName" value="<?php echo htmlspecialchars($student_data['lastName'] ?? ''); ?>" required>
                                     <label for="lastName">Last Name</label>
                                     <div class="invalid-feedback">Please enter last name</div>
                                 </div>
@@ -619,16 +878,16 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
                         <div class="form-floating mb-3">
                             <select class="form-select" id="gender" name="gender" required>
                                 <option value="">Select Gender</option>
-                                <option value="Male" <?php echo ($student_data['GENDER'] ?? '') == 'Male' ? 'selected' : ''; ?>>Male</option>
-                                <option value="Female" <?php echo ($student_data['GENDER'] ?? '') == 'Female' ? 'selected' : ''; ?>>Female</option>
-                                <option value="Other" <?php echo ($student_data['GENDER'] ?? '') == 'Other' ? 'selected' : ''; ?>>Other</option>
+                                <option value="Male" <?php echo (isset($student_data['gender']) && $student_data['gender'] == 'Male') ? 'selected' : ''; ?>>Male</option>
+                                <option value="Female" <?php echo (isset($student_data['gender']) && $student_data['gender'] == 'Female') ? 'selected' : ''; ?>>Female</option>
+                                <option value="Other" <?php echo (isset($student_data['gender']) && $student_data['gender'] == 'Other') ? 'selected' : ''; ?>>Other</option>
                             </select>
                             <label for="gender">Gender</label>
                             <div class="invalid-feedback">Please select gender</div>
                         </div>
 
                         <div class="form-floating mb-3">
-                            <input type="tel" class="form-control" id="contactNumber" name="contactNumber" value="<?php echo htmlspecialchars($student_data['ContactNumber'] ?? ''); ?>" required pattern="[0-9]{11}">
+                            <input type="tel" class="form-control" id="contactNumber" name="contactNumber" value="<?php echo htmlspecialchars($student_data['contactNumber'] ?? ''); ?>" required pattern="[0-9]{11}">
                             <label for="contactNumber">Contact Number (11 digits)</label>
                             <div class="invalid-feedback">Please enter a valid 11-digit phone number</div>
                         </div>
@@ -640,18 +899,99 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
                         </div>
 
                         <div class="form-floating mb-3">
-                            <input type="tel" class="form-control" id="parentContact" name="parentContact" value="<?php echo htmlspecialchars($student_data['parentContact'] ?? ''); ?>" required pattern="[0-9]{11}">
+                            <input type="tel" class="form-control" id="parentContact" name="parentContact" value="<?php echo htmlspecialchars($student_data['parentContact'] ?? ''); ?>" pattern="[0-9]{11}">
                             <label for="parentContact">Parent/Guardian Contact (11 digits)</label>
                             <div class="invalid-feedback">Please enter a valid 11-digit phone number</div>
                         </div>
 
                         <div class="form-floating mb-3">
-                            <input type="password" class="form-control" id="password" name="password">
-                            <label for="password">New Password (leave blank to keep current)</label>
+                            <input type="text" class="form-control" id="emergencyContactName" name="emergencyContactName" value="<?php echo htmlspecialchars($student_data['emergencyContactName'] ?? ''); ?>">
+                            <label for="emergencyContactName">Emergency Contact Name</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="emergencyContactRelationship" name="emergencyContactRelationship" value="<?php echo htmlspecialchars($student_data['emergencyContactRelationship'] ?? ''); ?>">
+                            <label for="emergencyContactRelationship">Emergency Contact Relationship</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="tel" class="form-control" id="emergencyContactNumber" name="emergencyContactNumber" value="<?php echo htmlspecialchars($student_data['emergencyContactNumber'] ?? ''); ?>">
+                            <label for="emergencyContactNumber">Emergency Contact Number</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="bloodType" name="bloodType" value="<?php echo htmlspecialchars($student_data['bloodType'] ?? ''); ?>">
+                            <label for="bloodType">Blood Type</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="allergies" name="allergies" value="<?php echo htmlspecialchars($student_data['allergies'] ?? ''); ?>">
+                            <label for="allergies">Allergies</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="medicalConditions" name="medicalConditions" value="<?php echo htmlspecialchars($student_data['medicalConditions'] ?? ''); ?>">
+                            <label for="medicalConditions">Medical Conditions</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="medications" name="medications" value="<?php echo htmlspecialchars($student_data['medications'] ?? ''); ?>">
+                            <label for="medications">Medications</label>
+                        </div>
+
+                        <div class="mb-3 text-center">
+                            <label for="profilePhoto" class="form-label" style="font-weight:500; color:#1976d2;">Profile Photo</label>
+                            <input type="file" class="form-control" id="profilePhoto" name="profilePhoto" accept="image/*">
+                            <div class="form-text">Max size: 2MB. JPG, PNG only.</div>
                         </div>
 
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">Update Profile</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content change-password-modal-content">
+                <div class="modal-header" style="border-bottom: none;">
+                    <h5 class="modal-title" id="changePasswordModalLabel" style="color:#2563eb;font-weight:600;font-size:1.3rem;">
+                        <span style="font-size:1.5rem;font-weight:700;letter-spacing:1px;">***</span>Change Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="font-size:1.3rem;"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2" style="color:#d32f2f;font-size:0.98rem;font-weight:500;">
+                        All fields are required. Password must be at least eight (8) characters or more
+                    </div>
+                    <form id="changePasswordForm" autocomplete="off">
+                        <div class="mb-3">
+                            <label for="currentPassword" class="form-label" style="color:#d32f2f;font-weight:500;">Current password *</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="currentPassword" placeholder="Password" required minlength="8">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1"><i class="bi bi-eye-slash"></i></button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">New password *</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="newPassword" placeholder="Password" required minlength="8">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1"><i class="bi bi-eye-slash"></i></button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm password *</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirmPassword" placeholder="Password" required minlength="8">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1"><i class="bi bi-eye-slash"></i></button>
+                            </div>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary" id="submitChangePassword" disabled>Submit</button>
                         </div>
                     </form>
                 </div>
@@ -796,6 +1136,89 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
                             dropdown.querySelector('.dropdown-header').insertAdjacentHTML('afterend', '<div class="no-notif">No new notifications.</div>');
                         }
                     });
+                });
+            });
+
+            // Dropdown toggle for navbar user
+            const navbarUser = document.getElementById('navbarUser');
+            const navbarDropdown = document.getElementById('navbarDropdown');
+            let dropdownOpen = false;
+            navbarUser.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdownOpen = !dropdownOpen;
+                navbarDropdown.classList.toggle('show', dropdownOpen);
+            });
+            document.addEventListener('click', function() {
+                if (dropdownOpen) {
+                    navbarDropdown.classList.remove('show');
+                    dropdownOpen = false;
+                }
+            });
+            // Optional: handle notification dropdown click
+            document.getElementById('notificationDropdownBtn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                // You can show a modal or redirect to a notifications page here
+                // For now, just alert
+                alert('Show notifications here!');
+            });
+
+            // Change Password Modal logic
+            document.addEventListener('DOMContentLoaded', function() {
+                // Open modal on dropdown click
+                document.getElementById('openChangePasswordModal').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+                    modal.show();
+                    // Close dropdown
+                    document.getElementById('navbarDropdown').classList.remove('show');
+                });
+
+                // Toggle password visibility
+                document.querySelectorAll('#changePasswordModal .toggle-password').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var input = this.parentElement.querySelector('input');
+                        var icon = this.querySelector('i');
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            icon.classList.remove('bi-eye-slash');
+                            icon.classList.add('bi-eye');
+                        } else {
+                            input.type = 'password';
+                            icon.classList.remove('bi-eye');
+                            icon.classList.add('bi-eye-slash');
+                        }
+                    });
+                });
+
+                // Enable submit only if all fields are valid and passwords match
+                var form = document.getElementById('changePasswordForm');
+                var submitBtn = document.getElementById('submitChangePassword');
+                var current = document.getElementById('currentPassword');
+                var newP = document.getElementById('newPassword');
+                var confirm = document.getElementById('confirmPassword');
+                function validateChangePassword() {
+                    var valid =
+                        current.value.length >= 8 &&
+                        newP.value.length >= 8 &&
+                        confirm.value.length >= 8 &&
+                        newP.value === confirm.value;
+                    submitBtn.disabled = !valid;
+                }
+                [current, newP, confirm].forEach(function(input) {
+                    input.addEventListener('input', validateChangePassword);
+                });
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    // TODO: Implement AJAX password change here
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Submitting...';
+                    setTimeout(function() {
+                        submitBtn.textContent = 'Submit';
+                        submitBtn.disabled = false;
+                        var modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                        modal.hide();
+                        alert('Password changed (demo only).');
+                    }, 1200);
                 });
             });
         });

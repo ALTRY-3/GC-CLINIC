@@ -1,0 +1,67 @@
+body {
+    background-color: #f8f9fa;
+    color: #343a40;
+    font-family: 'Poppins', sans-serif;
+}
+
+.admin-header {
+    background-color: #343a40;
+    color: white;
+    padding: 15px;
+    text-align: center;
+}
+
+.admin-sidebar {
+    background-color: #495057;
+    color: white;
+    padding: 15px;
+    height: 100vh;
+}
+
+.admin-sidebar a {
+    color: white;
+    text-decoration: none;
+    display: block;
+    padding: 10px;
+    transition: background 0.3s;
+}
+
+.admin-sidebar a:hover {
+    background-color: #6c757d;
+}
+
+.admin-content {
+    padding: 20px;
+}
+
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: #007bff;
+    color: white;
+    padding: 10px;
+}
+
+.table td {
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 0.25rem;
+    color: white;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
