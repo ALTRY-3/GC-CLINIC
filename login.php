@@ -411,12 +411,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     </span>
                 </div>
                 <div class="form-group remember-me">
-                    <div style="display: flex; align-items: center;">
-                        <label class="checkbox-container">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <label class="checkbox-container" style="margin-bottom: 0;">
                             <input type="checkbox" name="remember" id="remember" <?php echo !empty($rememberedEmail) ? 'checked' : ''; ?>>
                             <span class="checkmark"></span>
                             Remember me
                         </label>
+                        <a href="forgot_password.php" style="color: #011f4b; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; margin-left: 10px;">Forgot Password?</a>
                     </div>
                 </div>
                 <button type="submit" class="submit-btn">Login</button>
