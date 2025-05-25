@@ -456,6 +456,221 @@ $result = $stmt->get_result();
             filter: brightness(0) invert(1);
         }
         
+        /* Page Header */
+        .page-header {
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--surface-medium);
+        }
+
+        .page-title {
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Appointment Cards */
+        .appointment-grid {
+            margin-bottom: 2rem;
+        }
+
+        .appointment-card {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border-top: 5px solid #ccc;
+        }
+
+        .appointment-card.pending {
+            border-top-color: #ffc107;
+        }
+
+        .appointment-card.approved {
+            border-top-color: #0d6efd;
+        }
+
+        .appointment-card.completed {
+            border-top-color: #198754;
+        }
+
+        .appointment-card.cancelled {
+            border-top-color: #dc3545;
+        }
+
+        .appointment-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .appointment-card-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #666;
+            background: #f9f9f9;
+        }
+
+        .pending .appointment-card-status {
+            color: #856404;
+            background-color: #fff3cd;
+        }
+
+        .approved .appointment-card-status {
+            color: #004085;
+            background-color: #cce5ff;
+        }
+
+        .completed .appointment-card-status {
+            color: #155724;
+            background-color: #d4edda;
+        }
+
+        .cancelled .appointment-card-status {
+            color: #721c24;
+            background-color: #f8d7da;
+        }
+
+        .appointment-card-content {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-grow: 1;
+        }
+
+        .appointment-date {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .date-badge {
+            background: var(--primary);
+            color: white;
+            border-radius: var(--radius-sm);
+            padding: 8px 15px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .date-badge .month {
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .date-badge .day {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .date-badge .year {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .time-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-medium);
+            font-size: 0.9rem;
+        }
+
+        .appointment-details {
+            padding-top: 10px;
+            border-top: 1px dashed var(--surface-medium);
+        }
+
+        .appointment-reason {
+            margin-bottom: 10px;
+            color: var(--text-dark);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .doctor-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-medium);
+            font-size: 0.95rem;
+        }
+
+        .appointment-card-actions {
+            padding: 15px;
+            border-top: 1px solid var(--surface-medium);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 20px;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .empty-state-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state-description {
+            color: var(--text-medium);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        /* List View */
+        .appointment-table th {
+            background: var(--surface-light);
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .appointment-table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .appointment-table tbody tr:hover {
+            background: var(--surface-light);
+        }
+
+        /* View Toggle Buttons */
+        .view-controls .btn-group .btn.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
         /* Responsive */
         @media (max-width: 992px) {
             .sidebar {
@@ -576,80 +791,250 @@ $result = $stmt->get_result();
         
         <!-- Main Content -->
         <main class="main-content main-expanded" id="mainContent">
-            <div class="profile-container">
-                <div class="profile-header">
-                    <h2><i class="bi bi-calendar2-check"></i> My Appointments</h2>
+            <div class="container-fluid p-0">
+                <!-- Page Header -->
+                <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="page-title"><i class="bi bi-calendar2-check"></i> My Appointments</h2>
+                        <p class="text-muted">Manage all your clinic appointments in one place</p>
+                    </div>
+                    
+                    <!-- Filter/View Controls -->
+                    <div class="view-controls d-flex gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-funnel"></i> Filter
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="filterDropdown">
+                                <li><a class="dropdown-item" href="#" data-filter="all">All Appointments</a></li>
+                                <li><a class="dropdown-item" href="#" data-filter="upcoming">Upcoming</a></li>
+                                <li><a class="dropdown-item" href="#" data-filter="completed">Completed</a></li>
+                                <li><a class="dropdown-item" href="#" data-filter="cancelled">Cancelled</a></li>
+                            </ul>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-secondary active" id="cardViewBtn">
+                                <i class="bi bi-grid"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="listViewBtn">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Reason</th>
-                                <th>Doctor</th>
-                                <th>Time Slot</th>
-                                <th>Status</th>
-                                <th>Test Result</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                
+                <!-- Appointment Cards View -->
+                <div class="appointment-grid" id="appointmentCardView">
+                    <div class="row g-3">
+                        <?php if ($result->num_rows > 0): ?>
+                            <?php $result->data_seek(0); // Reset the result pointer ?>
                             <?php while ($row = $result->fetch_assoc()): ?>
+                                <?php
+                                $status = strtolower($row['status_name']);
+                                $statusClass = '';
+                                $statusIcon = '';
+                                
+                                switch ($status) {
+                                    case 'pending':
+                                        $statusClass = 'pending';
+                                        $statusIcon = 'bi-hourglass-split';
+                                        break;
+                                    case 'approved':
+                                        $statusClass = 'approved';
+                                        $statusIcon = 'bi-check-circle';
+                                        break;
+                                    case 'completed':
+                                        $statusClass = 'completed';
+                                        $statusIcon = 'bi-check2-all';
+                                        break;
+                                    case 'cancelled':
+                                    case 'canceled':
+                                        $statusClass = 'cancelled';
+                                        $statusIcon = 'bi-x-circle';
+                                        break;
+                                    default:
+                                        $statusClass = 'default';
+                                        $statusIcon = 'bi-info-circle';
+                                }
+                                
+                                // Get the test result
+                                $testQuery = "SELECT FilePath, FileName FROM test_results WHERE appointmentID = ?";
+                                $testStmt = $conn->prepare($testQuery);
+                                $testStmt->bind_param("i", $row['AppointmentID']);
+                                $testStmt->execute();
+                                $testResult = $testStmt->get_result();
+                                $hasTestResult = $testResult->num_rows > 0;
+                                if ($hasTestResult) {
+                                    $testData = $testResult->fetch_assoc();
+                                }
+                                ?>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="appointment-card <?php echo $statusClass; ?>">
+                                        <div class="appointment-card-status">
+                                            <i class="bi <?php echo $statusIcon; ?>"></i>
+                                            <span><?php echo ucfirst($status); ?></span>
+                                        </div>
+                                        <div class="appointment-card-content">
+                                            <div class="appointment-date">
+                                                <div class="date-badge">
+                                                    <div class="month"><?php echo date('M', strtotime($row['AppointmentDate'])); ?></div>
+                                                    <div class="day"><?php echo date('d', strtotime($row['AppointmentDate'])); ?></div>
+                                                    <div class="year"><?php echo date('Y', strtotime($row['AppointmentDate'])); ?></div>
+                                                </div>
+                                                <div class="time-info">
+                                                    <i class="bi bi-clock"></i>
+                                                    <?php echo date('g:i A', strtotime($row['StartTime'])) . ' - ' . date('g:i A', strtotime($row['EndTime'])); ?>
+                                                </div>
+                                            </div>
+                                            <div class="appointment-details">
+                                                <h5 class="appointment-reason"><?php echo htmlspecialchars($row['Reason']); ?></h5>
+                                                <div class="doctor-info">
+                                                    <i class="bi bi-person-badge"></i>
+                                                    <span>Dr. <?php echo htmlspecialchars($row['FirstName'] . ' ' . $row['LastName']); ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="appointment-card-actions">
+                                            <?php if ($hasTestResult): ?>
+                                                <button type="button" class="btn btn-primary btn-result" onclick="showTestResultModal('<?php echo htmlspecialchars($testData['FilePath'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($testData['FileName'], ENT_QUOTES); ?>')">
+                                                    <i class="bi bi-file-earmark-medical"></i> View Result
+                                                </button>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($row['status_name'] == 'Pending' || $row['status_name'] == 'Approved'): ?>
+                                                <button type="button" class="btn btn-outline-danger" onclick="openCancellationModal(<?php echo $row['AppointmentID']; ?>)">
+                                                    <i class="bi bi-x-circle"></i> Cancel
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <div class="col-12">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="bi bi-calendar-x"></i>
+                                    </div>
+                                    <h3 class="empty-state-title">No Appointments Found</h3>
+                                    <p class="empty-state-description">You don't have any appointments scheduled. Would you like to book a new appointment?</p>
+                                    <a href="appointment.php" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Book Appointment
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- List View (Initially Hidden) -->
+                <div class="appointment-list-view" id="appointmentListView" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover appointment-table">
+                            <thead>
                                 <tr>
-                                    <td><?php echo date('F j, Y', strtotime($row['AppointmentDate'])); ?></td>
-                                    <td><?php echo htmlspecialchars($row['Reason']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['FirstName'] . ' ' . $row['LastName']); ?></td>
-                                    <td><?php echo date('g:i A', strtotime($row['StartTime'])) . ' - ' . date('g:i A', strtotime($row['EndTime'])); ?></td>
-                                    <td>
+                                    <th>Date & Time</th>
+                                    <th>Reason</th>
+                                    <th>Doctor</th>
+                                    <th>Status</th>
+                                    <th>Test Result</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if ($result->num_rows > 0): ?>
+                                    <?php $result->data_seek(0); // Reset the result pointer ?>
+                                    <?php while ($row = $result->fetch_assoc()): ?>
                                         <?php
                                         $status = strtolower($row['status_name']);
-                                        $badge = '';
+                                        $statusClass = '';
+                                        $statusIcon = '';
+                                        
                                         switch ($status) {
                                             case 'pending':
-                                                $badge = '<span class="badge bg-warning text-dark">Pending</span>';
+                                                $statusClass = 'bg-warning text-dark';
+                                                $statusIcon = 'bi-hourglass-split';
                                                 break;
                                             case 'approved':
-                                                $badge = '<span class="badge bg-primary">Approved</span>';
+                                                $statusClass = 'bg-primary text-white';
+                                                $statusIcon = 'bi-check-circle';
                                                 break;
                                             case 'completed':
-                                                $badge = '<span class="badge bg-success">Completed</span>';
+                                                $statusClass = 'bg-success text-white';
+                                                $statusIcon = 'bi-check2-all';
                                                 break;
                                             case 'cancelled':
                                             case 'canceled':
-                                                $badge = '<span class="badge bg-danger">Cancelled</span>';
+                                                $statusClass = 'bg-danger text-white';
+                                                $statusIcon = 'bi-x-circle';
                                                 break;
                                             default:
-                                                $badge = '<span class="badge bg-secondary">' . htmlspecialchars($row['status_name']) . '</span>';
+                                                $statusClass = 'bg-secondary text-white';
+                                                $statusIcon = 'bi-info-circle';
                                         }
-                                        echo $badge;
-                                        ?>
-                                    </td>
-                                    <td>
-                                        <?php
+                                        
+                                        // Get the test result
                                         $testQuery = "SELECT FilePath, FileName FROM test_results WHERE appointmentID = ?";
                                         $testStmt = $conn->prepare($testQuery);
                                         $testStmt->bind_param("i", $row['AppointmentID']);
                                         $testStmt->execute();
                                         $testResult = $testStmt->get_result();
-                                        if ($testResult->num_rows > 0) {
+                                        $hasTestResult = $testResult->num_rows > 0;
+                                        if ($hasTestResult) {
                                             $testData = $testResult->fetch_assoc();
-                                            echo '<button type="button" class="btn btn-primary btn-sm" onclick="showTestResultModal(\'' . htmlspecialchars($testData['FilePath'], ENT_QUOTES) . '\', \'' . htmlspecialchars($testData['FileName'], ENT_QUOTES) . '\')">View</button>';
-                                        } else {
-                                            echo '<span class="text-muted">No test result available</span>';
                                         }
                                         ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($row['status_name'] == 'Pending' || $row['status_name'] == 'Approved'): ?>
-                                        <button type="button" class="btn btn-danger btn-sm" onclick="openCancellationModal(<?php echo $row['AppointmentID']; ?>)">
-                                            <i class="bi bi-x-circle"></i> Request Cancellation
-                                        </button>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex flex-column">
+                                                    <strong><?php echo date('F j, Y', strtotime($row['AppointmentDate'])); ?></strong>
+                                                    <small class="text-muted"><?php echo date('g:i A', strtotime($row['StartTime'])) . ' - ' . date('g:i A', strtotime($row['EndTime'])); ?></small>
+                                                </div>
+                                            </td>
+                                            <td><?php echo htmlspecialchars($row['Reason']); ?></td>
+                                            <td>Dr. <?php echo htmlspecialchars($row['FirstName'] . ' ' . $row['LastName']); ?></td>
+                                            <td>
+                                                <span class="badge <?php echo $statusClass; ?>">
+                                                    <i class="bi <?php echo $statusIcon; ?>"></i> <?php echo ucfirst($status); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <?php if ($hasTestResult): ?>
+                                                    <button type="button" class="btn btn-sm btn-primary" onclick="showTestResultModal('<?php echo htmlspecialchars($testData['FilePath'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($testData['FileName'], ENT_QUOTES); ?>')">
+                                                        <i class="bi bi-file-earmark-medical"></i> View
+                                                    </button>
+                                                <?php else: ?>
+                                                    <span class="text-muted">No result</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if ($row['status_name'] == 'Pending' || $row['status_name'] == 'Approved'): ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="openCancellationModal(<?php echo $row['AppointmentID']; ?>)">
+                                                        <i class="bi bi-x-circle"></i> Cancel
+                                                    </button>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="empty-state">
+                                                <div class="empty-state-icon">
+                                                    <i class="bi bi-calendar-x"></i>
+                                                </div>
+                                                <h3 class="empty-state-title">No Appointments Found</h3>
+                                                <p class="empty-state-description">You don't have any appointments scheduled.</p>
+                                                <a href="appointment.php" class="btn btn-primary">
+                                                    <i class="bi bi-plus-circle"></i> Book Appointment
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </main>
