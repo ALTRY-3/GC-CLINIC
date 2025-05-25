@@ -1,7 +1,30 @@
 <?php 
 session_start();
-include 'db_connection.php';
+include 'config.php';
 
+// Check if doctor is logged in
+if (!isset($_SESSION['doctor_id'])) {
+    header("Location: doctor_login.php");
+    exit();
+}
+
+// Get the logged-in doctor's unique ID
+$doctorID = $_SESSION['doctor_id'];
+
+// Verify doctor exists and get their information
+$doctor_verify_sql = "SELECT * FROM doctors WHERE DoctorID = ? AND Status = 'Active'";
+$doctor_verify_stmt = $conn->prepare($doctor_verify_sql);
+$doctor_verify_stmt->bind_param("s", $doctorID);
+$doctor_verify_stmt->execute();
+$doctor_verify_result = $doctor_verify_stmt->get_result();
+
+if ($doctor_verify_result->num_rows === 0) {
+    session_destroy();
+    header("Location: doctor_login.php?error=invalid_session");
+    exit();
+}
+
+$doctorInfo = $doctor_verify_result->fetch_assoc();
 
 // Handle search
 $searchTerm = isset($_GET['search']) ? $_GET['search'] : '';
@@ -10,15 +33,15 @@ $searchTermLike = '%' . $conn->real_escape_string($searchTerm) . '%';
 // Get the selected filter
 $statusFilter = isset($_GET['status']) ? $_GET['status'] : 'all';
 
-// Get counts for each status
+// Get counts for each status - ONLY for this doctor
 $countQuery = "SELECT a.StatusID, COUNT(*) as count 
                FROM appointments a 
-               LEFT JOIN status s ON a.StatusID = s.statusID
+               WHERE a.DoctorID = ?
                GROUP BY a.StatusID";
-$countResult = $conn->query($countQuery);
-
-// Debug log the count query
-error_log("Count Query: " . $countQuery);
+$countStmt = $conn->prepare($countQuery);
+$countStmt->bind_param("s", $doctorID);
+$countStmt->execute();
+$countResult = $countStmt->get_result();
 
 $statusCounts = [
     'Pending' => 0,
@@ -29,7 +52,6 @@ $statusCounts = [
 ];
 
 while ($row = $countResult->fetch_assoc()) {
-    error_log("Status ID: " . $row['StatusID'] . ", Count: " . $row['count']);
     switch ($row['StatusID']) {
         case 1: $statusCounts['Pending'] = $row['count']; break;
         case 2: $statusCounts['Approved'] = $row['count']; break;
@@ -39,18 +61,7 @@ while ($row = $countResult->fetch_assoc()) {
     }
 }
 
-// Debug log the status counts
-error_log("Status Counts: " . print_r($statusCounts, true));
-
-// Debug query to check cancellation requests
-$debugQuery = "SELECT COUNT(*) as cancellation_count 
-               FROM appointments a 
-               WHERE a.StatusID = 5";
-$debugResult = $conn->query($debugQuery);
-$cancellationCount = $debugResult->fetch_assoc()['cancellation_count'];
-error_log("Debug - Cancellation requests count: " . $cancellationCount);
-
-// Modify the main query to properly handle status filtering
+// Modified main query to show ONLY this doctor's appointments
 $query = "
     SELECT 
         students.StudentID,
@@ -80,11 +91,12 @@ $query = "
     INNER JOIN appointments ON students.StudentID = appointments.StudentID
     LEFT JOIN status s ON appointments.StatusID = s.statusID
     LEFT JOIN doctors d ON appointments.DoctorID = d.DoctorID
-    LEFT JOIN timeslots ts ON appointments.SlotID = ts.SlotID";
+    LEFT JOIN timeslots ts ON appointments.SlotID = ts.SlotID
+    WHERE appointments.DoctorID = ?"; // Filter by logged-in doctor
 
 $whereConditions = [];
-$params = [];
-$types = "";
+$params = [$doctorID]; // Start with doctor ID
+$types = "s";
 
 if ($searchTerm) {
     $whereConditions[] = "(students.FirstName LIKE ? OR students.LastName LIKE ?)";
@@ -106,7 +118,7 @@ if ($statusFilter !== 'all') {
 }
 
 if (!empty($whereConditions)) {
-    $query .= " WHERE " . implode(" AND ", $whereConditions);
+    $query .= " AND " . implode(" AND ", $whereConditions);
 }
 
 $query .= " ORDER BY 
@@ -119,26 +131,27 @@ $query .= " ORDER BY
     DATE(appointments.AppointmentDate) ASC,
     ts.StartTime ASC";
 
-// Debug output
-error_log("Debug - Status Filter: " . $statusFilter);
-error_log("Debug - Query: " . $query);
-if (!empty($params)) {
-    error_log("Debug - Params: " . implode(", ", $params));
-}
-
 $stmt = $conn->prepare($query);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
-}
+$stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
-
-// Debug log the number of results
-error_log("Number of results: " . $result->num_rows);
 
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
     $appointmentID = $_POST['appointment_id'];
+    
+    // Verify this appointment belongs to the logged-in doctor
+    $verify_appointment_sql = "SELECT * FROM appointments WHERE AppointmentID = ? AND DoctorID = ?";
+    $verify_appointment_stmt = $conn->prepare($verify_appointment_sql);
+    $verify_appointment_stmt->bind_param("is", $appointmentID, $doctorID);
+    $verify_appointment_stmt->execute();
+    $verify_result = $verify_appointment_stmt->get_result();
+    
+    if ($verify_result->num_rows === 0) {
+        $_SESSION['error_message'] = "You can only manage your own appointments.";
+        header("Location: doctor_student.php");
+        exit();
+    }
     
     // Start transaction
     $conn->begin_transaction();
@@ -148,322 +161,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
         $getDetails = $conn->prepare("SELECT StudentID, AppointmentDate, DoctorID, StatusID FROM appointments WHERE AppointmentID = ?");
         $getDetails->bind_param("i", $appointmentID);
         $getDetails->execute();
-        $result = $getDetails->get_result();
-        $appointment = $result->fetch_assoc();
+        $appointment_result = $getDetails->get_result();
+        $appointment = $appointment_result->fetch_assoc();
         
         if ($appointment) {
-            // Get doctor details
-            $getDoctor = $conn->prepare("SELECT FirstName, LastName FROM doctors WHERE DoctorID = ?");
-            $getDoctor->bind_param("i", $appointment['DoctorID']);
-            $getDoctor->execute();
-            $doctor = $getDoctor->get_result()->fetch_assoc();
+            // Get student details
+            $getStudent = $conn->prepare("SELECT email, FirstName, LastName FROM students WHERE StudentID = ?");
+            $getStudent->bind_param("i", $appointment['StudentID']);
+            $getStudent->execute();
+            $student = $getStudent->get_result()->fetch_assoc();
             
-            if (isset($_POST['update_status'])) {
-                $newStatus = $_POST['update_status'];
-                
-                // Update appointment status
-                $updateQuery = "UPDATE appointments SET StatusID = ? WHERE AppointmentID = ?";
-                $updateStmt = $conn->prepare($updateQuery);
-                $updateStmt->bind_param("ii", $newStatus, $appointmentID);
-                $updateStmt->execute();
-                
-                // Create notification based on status change
-                $message = "";
-                switch ($newStatus) {
-                    case 2: // Approved
-                        $message = "Your appointment with Dr. " . $doctor['LastName'] . 
-                                 " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                                 " has been approved.";
-                        break;
-                    case 3: // Completed
-                        $message = "Congratulations! Your appointment with Dr. " . $doctor['LastName'] . 
-                                 " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                                 " has been completed. Please check for your results or follow-up instructions.";
-                        
-                        // Get test results/attachments for this appointment
-                        $fileQuery = "SELECT FilePath, FileName FROM test_results WHERE AppointmentID = ?";
-                        $fileStmt = $conn->prepare($fileQuery);
-                        $fileStmt->bind_param("i", $appointmentID);
-                        $fileStmt->execute();
-                        $fileResult = $fileStmt->get_result();
-                        $fileData = $fileResult->fetch_assoc();
-
-                        // Send completion email
-                        require_once 'send_mail.php';
-                        $emailSubject = "Appointment Completed - Medical Clinic Notify+";
-                        $emailBody = "
-                            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;'>
-                                <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                                    <div style='text-align: center; margin-bottom: 30px;'>
-                                        <h2 style='color: #1976d2; font-size: 24px; margin-bottom: 10px;'>Appointment Completed</h2>
-                                        <p style='color: #666; font-size: 16px; margin: 0;'>Thank you for visiting Medical Clinic Notify+</p>
-                                    </div>
-
-                                    <div style='margin-bottom: 25px;'>
-                                        <p style='font-size: 16px; color: #444; margin-bottom: 15px;'>Dear " . htmlspecialchars($student['FirstName'] . ' ' . $student['LastName']) . ",</p>
-                                        <p style='font-size: 16px; color: #444; line-height: 1.5;'>Your appointment has been successfully completed. Here are the details of your visit:</p>
-                                    </div>
-
-                                    <div style='background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px;'>
-                                        <table style='width: 100%; border-collapse: collapse;'>
-                                            <tr>
-                                                <td style='padding: 8px 0; color: #666;'>Doctor:</td>
-                                                <td style='padding: 8px 0; color: #333; font-weight: 500;'>Dr. " . htmlspecialchars($doctor['FirstName'] . ' ' . $doctor['LastName']) . "</td>
-                                            </tr>
-                                            <tr>
-                                                <td style='padding: 8px 0; color: #666;'>Date:</td>
-                                                <td style='padding: 8px 0; color: #333; font-weight: 500;'>" . date('F j, Y', strtotime($appointment['AppointmentDate'])) . "</td>
-                                            </tr>
-                                            <tr>
-                                                <td style='padding: 8px 0; color: #666;'>Purpose:</td>
-                                                <td style='padding: 8px 0; color: #333; font-weight: 500;'>" . htmlspecialchars($appointment['Reason']) . "</td>
-                                            </tr>
-                                            <tr>
-                                                <td style='padding: 8px 0; color: #666;'>Status:</td>
-                                                <td style='padding: 8px 0;'><span style='background-color: #1976d2; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;'>Completed</span></td>
-                                            </tr>
-                                        </table>
-                                    </div>";
-
-                        // Add test results section if available
-                        if ($fileData) {
-                            $emailBody .= "
-                                    <div style='background-color: #dff0d8; border-radius: 8px; padding: 16px; margin-bottom: 25px; color: #3c763d;'>
-                                        <p style='margin: 0; font-weight: 500;'>Test Results Available</p>
-                                        <p style='margin: 10px 0 0 0;'>Your test results have been attached to this email. Please review them carefully and keep them for your records.</p>
-                                        <p style='margin: 10px 0 0 0; font-size: 14px;'>Attached file: " . htmlspecialchars($fileData['FileName']) . "</p>
-                                    </div>";
-                        }
-
-                        $emailBody .= "
-                                    <div style='background: #e3f0fc; border-radius: 8px; padding: 16px; margin-bottom: 25px; color: #1976d2;'>
-                                        <p style='margin: 0; font-weight: 500; margin-bottom: 10px;'>Next Steps:</p>
-                                        <ul style='margin: 0; padding-left: 20px;'>
-                                            <li style='margin-bottom: 5px;'>Review your attached test results (if any)</li>
-                                            <li style='margin-bottom: 5px;'>Follow any prescribed treatment plan</li>
-                                            <li style='margin-bottom: 5px;'>Schedule follow-up appointments if recommended</li>
-                                            <li>Keep this email and attachments for your records</li>
-                                        </ul>
-                                    </div>
-
-                                    <div style='background-color: #fff3cd; border-radius: 8px; padding: 16px; margin-bottom: 25px; color: #856404;'>
-                                        <p style='margin: 0; font-weight: 500;'>Important Note:</p>
-                                        <p style='margin: 10px 0 0 0;'>If you have any questions about your results or need to schedule a follow-up appointment, please don't hesitate to contact us.</p>
-                                    </div>
-
-                                    <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'>
-                                        <p style='color: #666; font-size: 14px; margin: 0;'>Thank you for choosing</p>
-                                        <p style='color: #1976d2; font-size: 16px; font-weight: 600; margin: 5px 0;'>Medical Clinic Notify+</p>
-                                    </div>
-                                </div>
-                                <div style='text-align: center; margin-top: 20px; color: #999; font-size: 14px;'>
-                                    © " . date('Y') . " Medical Clinic Notify+. All rights reserved.
-                                </div>
-                            </div>
-                        ";
-                        
-                        // Send email with attachment if available
-                        if ($fileData) {
-                            sendAppointmentEmailWithAttachment(
-                                $student['email'],
-                                $student['FirstName'] . ' ' . $student['LastName'],
-                                $emailSubject,
-                                $emailBody,
-                                $fileData['FilePath'],
-                                $fileData['FileName']
-                            );
-                        } else {
-                            sendAppointmentEmail(
-                                $student['email'],
-                                $student['FirstName'] . ' ' . $student['LastName'],
-                                $emailSubject,
-                                $emailBody
-                            );
-                        }
-                        break;
-                    case 4: // Cancelled
-                        $message = "Your appointment with Dr. " . $doctor['LastName'] . 
-                                 " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                                 " has been cancelled.";
-                        break;
-                }
-                
-                if ($message) {
-                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
-                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
-                    $insertNotification->execute();
-                }
-                
-                $_SESSION['success_message'] = "Appointment status has been updated successfully.";
-            } 
-            else if (isset($_POST['action'])) {
+            if (isset($_POST['action'])) {
                 $action = $_POST['action'];
                 
-                if ($action === 'approve') {
-                    // Update appointment status to Cancelled
-                    $updateQuery = "UPDATE appointments SET StatusID = 4 WHERE AppointmentID = ?";
+                if ($action === 'approve_appointment') {
+                    // Update appointment status to Approved
+                    $updateQuery = "UPDATE appointments SET StatusID = 2 WHERE AppointmentID = ?";
                     $updateStmt = $conn->prepare($updateQuery);
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    // Create notification for student
-                    $message = "Your cancellation request for the appointment with Dr. " . $doctor['LastName'] . 
+                    $message = "Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
                              " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
                              " has been approved.";
                     
                     $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
                     $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
                     $insertNotification->execute();
-
-                    // Get student email
-                    $studentQuery = $conn->prepare("SELECT email, FirstName, LastName FROM students WHERE StudentID = ?");
-                    $studentQuery->bind_param("i", $appointment['StudentID']);
-                    $studentQuery->execute();
-                    $student = $studentQuery->get_result()->fetch_assoc();
-
-                    // Send email notification
-                    require_once 'send_mail.php';
-                    $emailSubject = "Appointment Cancellation Request Approved - Medical Clinic Notify+";
-                    $emailBody = "
-                        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;'>
-                            <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                                <div style='text-align: center; margin-bottom: 30px;'>
-                                    <h2 style='color: #1976d2; font-size: 24px; margin-bottom: 10px;'>Cancellation Request Approved</h2>
-                                    <p style='color: #666; font-size: 16px; margin: 0;'>Your appointment has been successfully cancelled</p>
-                                </div>
-
-                                <div style='margin-bottom: 25px;'>
-                                    <p style='font-size: 16px; color: #444; margin-bottom: 15px;'>Dear " . htmlspecialchars($student['FirstName'] . ' ' . $student['LastName']) . ",</p>
-                                    <p style='font-size: 16px; color: #444; line-height: 1.5;'>Your request to cancel your appointment has been approved. Here are the details of the cancelled appointment:</p>
-                                </div>
-
-                                <div style='background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px;'>
-                                    <table style='width: 100%; border-collapse: collapse;'>
-                                        <tr>
-                                            <td style='padding: 8px 0; color: #666;'>Doctor:</td>
-                                            <td style='padding: 8px 0; color: #333; font-weight: 500;'>Dr. " . htmlspecialchars($doctor['LastName']) . "</td>
-                                        </tr>
-                                        <tr>
-                                            <td style='padding: 8px 0; color: #666;'>Date:</td>
-                                            <td style='padding: 8px 0; color: #333; font-weight: 500;'>" . date('F j, Y', strtotime($appointment['AppointmentDate'])) . "</td>
-                                        </tr>
-                                        <tr>
-                                            <td style='padding: 8px 0; color: #666;'>Status:</td>
-                                            <td style='padding: 8px 0;'><span style='background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;'>Cancelled</span></td>
-                                        </tr>
-                                    </table>
-                                </div>
-
-                                <div style='background: #e3f0fc; border-radius: 8px; padding: 16px; margin-bottom: 25px; color: #1976d2;'>
-                                    <p style='margin: 0; font-weight: 500; margin-bottom: 10px;'>Need to schedule a new appointment?</p>
-                                    <ul style='margin: 0; padding-left: 20px;'>
-                                        <li style='margin-bottom: 5px;'>Visit our website to book a new appointment</li>
-                                        <li style='margin-bottom: 5px;'>Choose from available time slots</li>
-                                        <li>Select your preferred doctor</li>
-                                    </ul>
-                                </div>
-
-                                <p style='font-size: 16px; color: #444; margin-bottom: 25px;'>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-
-                                <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'>
-                                    <p style='color: #666; font-size: 14px; margin: 0;'>Thank you for choosing</p>
-                                    <p style='color: #1976d2; font-size: 16px; font-weight: 600; margin: 5px 0;'>Medical Clinic Notify+</p>
-                                </div>
-                            </div>
-                            <div style='text-align: center; margin-top: 20px; color: #999; font-size: 14px;'>
-                                © " . date('Y') . " Medical Clinic Notify+. All rights reserved.
-                            </div>
-                        </div>
-                    ";
                     
-                    $emailSent = sendAppointmentEmail($student['email'], $student['FirstName'] . ' ' . $student['LastName'], $emailSubject, $emailBody);
+                    $_SESSION['success_message'] = "Appointment has been approved successfully.";
+                }
+                else if ($action === 'complete') {
+                    // Update appointment status to Completed
+                    $updateQuery = "UPDATE appointments SET StatusID = 3 WHERE AppointmentID = ?";
+                    $updateStmt = $conn->prepare($updateQuery);
+                    $updateStmt->bind_param("i", $appointmentID);
+                    $updateStmt->execute();
                     
-                    if (!$emailSent) {
-                        error_log("[Student Management] Failed to send cancellation approval email to student: " . $student['email']);
-                        // Still proceed with the cancellation, but add a warning message
-                        $_SESSION['warning_message'] = "Cancellation request has been approved, but there was an issue sending the email notification.";
-                    } else {
-                        $_SESSION['success_message'] = "Cancellation request has been approved and email notification sent.";
-                    }
-                } 
+                    $message = "Congratulations! Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
+                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
+                             " has been completed. Please check for your results or follow-up instructions.";
+                    
+                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
+                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
+                    $insertNotification->execute();
+                    
+                    $_SESSION['success_message'] = "Appointment has been marked as completed.";
+                }
+                else if ($action === 'cancel') {
+                    // Update appointment status to Cancelled
+                    $updateQuery = "UPDATE appointments SET StatusID = 4 WHERE AppointmentID = ?";
+                    $updateStmt = $conn->prepare($updateQuery);
+                    $updateStmt->bind_param("i", $appointmentID);
+                    $updateStmt->execute();
+                    
+                    $message = "Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
+                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
+                             " has been cancelled.";
+                    
+                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
+                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
+                    $insertNotification->execute();
+                    
+                    $_SESSION['success_message'] = "Appointment has been cancelled.";
+                }
+                else if ($action === 'approve') {
+                    // Approve cancellation request - Update to Cancelled
+                    $updateQuery = "UPDATE appointments SET StatusID = 4 WHERE AppointmentID = ?";
+                    $updateStmt = $conn->prepare($updateQuery);
+                    $updateStmt->bind_param("i", $appointmentID);
+                    $updateStmt->execute();
+                    
+                    $message = "Your cancellation request for the appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
+                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
+                             " has been approved.";
+                    
+                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
+                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
+                    $insertNotification->execute();
+                    
+                    $_SESSION['success_message'] = "Cancellation request has been approved.";
+                }
                 else if ($action === 'reject') {
-                    // Update appointment status back to Approved
+                    // Reject cancellation request - Update back to Approved
                     $updateQuery = "UPDATE appointments SET StatusID = 2 WHERE AppointmentID = ?";
                     $updateStmt = $conn->prepare($updateQuery);
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    // Create notification for student
-                    $message = "Your cancellation request for the appointment with Dr. " . $doctor['LastName'] . 
+                    $message = "Your cancellation request for the appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
                              " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
                              " has been rejected. The appointment is still scheduled.";
                     
                     $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
                     $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
                     $insertNotification->execute();
-
-                    // Get student email
-                    $studentQuery = $conn->prepare("SELECT email, FirstName, LastName FROM students WHERE StudentID = ?");
-                    $studentQuery->bind_param("i", $appointment['StudentID']);
-                    $studentQuery->execute();
-                    $student = $studentQuery->get_result()->fetch_assoc();
-
-                    // Send email notification
-                    require_once 'send_mail.php';
-                    $emailSubject = "Appointment Cancellation Request Rejected - Medical Clinic Notify+";
-                    $emailBody = "
-                        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;'>
-                            <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                                <div style='text-align: center; margin-bottom: 30px;'>
-                                    <h2 style='color: #1976d2; font-size: 24px; margin-bottom: 10px;'>Cancellation Request Rejected</h2>
-                                    <p style='color: #666; font-size: 16px; margin: 0;'>Your appointment is still scheduled</p>
-                                </div>
-
-                                <div style='margin-bottom: 25px;'>
-                                    <p style='font-size: 16px; color: #444; margin-bottom: 15px;'>Dear " . htmlspecialchars($student['FirstName'] . ' ' . $student['LastName']) . ",</p>
-                                    <p style='font-size: 16px; color: #444; line-height: 1.5;'>Your request to cancel your appointment has been rejected. The appointment will proceed as scheduled. Here are your appointment details:</p>
-                                </div>
-
-                                <div style='background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px;'>
-                                    <table style='width: 100%; border-collapse: collapse;'>
-                                        <tr>
-                                            <td style='padding: 8px 0; color: #666;'>Doctor:</td>
-                                            <td style='padding: 8px 0; color: #333; font-weight: 500;'>Dr. " . htmlspecialchars($doctor['FirstName'] . ' ' . $doctor['LastName']) . "</td>
-                                        </tr>
-                                        <tr>
-                                            <td style='padding: 8px 0; color: #666;'>Date:</td>
-                                            <td style='padding: 8px 0; color: #333; font-weight: 500;'>" . date('F j, Y', strtotime($appointment['AppointmentDate'])) . "</td>
-                                        </tr>
-                                        <tr>
-                                            <td style='padding: 8px 0; color: #666;'>Status:</td>
-                                            <td style='padding: 8px 0;'><span style='background-color: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;'>Scheduled</span></td>
-                                        </tr>
-                                    </table>
-                                </div>
-
-                                <div style='background: #e3f0fc; border-radius: 8px; padding: 16px; margin-bottom: 25px; color: #1976d2;'>
-                                    <p style='margin: 0; font-weight: 500; margin-bottom: 10px;'>Important Reminders:</p>
-                                    <ul style='margin: 0; padding-left: 20px;'>
-                                        <li style='margin-bottom: 5px;'>Please arrive 10 minutes before your appointment</li>
-                                        <li style='margin-bottom: 5px;'>Bring any relevant medical records</li>
-                                        <li style='margin-bottom: 5px;'>Don't forget your valid ID</li>
-                                        <li>Contact us if you have any questions</li>
-                                    </ul>
-                                </div>
-
-                                <p style='font-size: 16px; color: #444; margin-bottom: 25px;'>If you have any concerns or need to discuss this further, please don't hesitate to contact us.</p>
-
-                                <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'>
-                                    <p style='color: #666; font-size: 14px; margin: 0;'>Thank you for choosing</p>
-                                    <p style='color: #1976d2; font-size: 16px; font-weight: 600; margin: 5px 0;'>Medical Clinic Notify+</p>
-                                </div>
-                            </div>
-                            <div style='text-align: center; margin-top: 20px; color: #999; font-size: 14px;'>
-                                © " . date('Y') . " Medical Clinic Notify+. All rights reserved.
-                            </div>
-                        </div>
-                    ";
-                    sendAppointmentEmail($student['email'], $student['FirstName'] . ' ' . $student['LastName'], $emailSubject, $emailBody);
                     
                     $_SESSION['success_message'] = "Cancellation request has been rejected.";
                 }
@@ -479,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
     }
     
     // Redirect with current filter
-    $redirectUrl = "student_management.php";
+    $redirectUrl = "doctor_student.php";
     if ($statusFilter !== 'all') {
         $redirectUrl .= "?status=" . urlencode($statusFilter);
     }
@@ -498,14 +290,14 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Student Management</title>
+  <title>My Appointments - Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?> - Medical Clinic</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Your existing CSS styles -->
   <style>
-    /* Add these CSS variables first */
     :root {
         --primary: #2e7d32;
         --primary-light: #60ad5e;
@@ -761,365 +553,312 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             background: var(--primary-light);
         }
     }
+
+    .page-header {
+        background: white;
+        padding: 20px;
+        border-radius: var(--radius-sm);
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border-left: 4px solid var(--primary);
+    }
+
+    .page-header h1 {
+        color: var(--primary);
+        margin-bottom: 5px;
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
   </style>
 </head>
 
 <body>
-  <!-- Sidebar -->
-<aside class="sidebar" id="sidebar">
+  <!-- Your existing sidebar -->
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
     </div>
     <div class="sidebar-divider"></div>
-    <!-- Updated sidebar menu structure with spans for better text control -->
     <ul class="sidebar-menu">
         <li><a href="doctor_dashboard.php" class="<?= $currentPage === 'doctor_dashboard.php' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
         </a></li>
         <li><a href="doctor_student.php" class="<?= $currentPage === 'doctor_student.php' ? 'active' : '' ?>">
-            <i class="bi bi-calendar-check"></i> <span>Appointments</span>
+            <i class="bi bi-calendar-check"></i> <span>My Appointments</span>
         </a></li>
         <li><a href="student_viewer.php" class="<?= $currentPage === 'student_viewer.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-lines-fill"></i> <span>Patient Records</span>
+            <i class="bi bi-person-lines-fill"></i> <span>My Patients</span>
         </a></li>
         <li><a href="doctor_notes.php" class="<?= $currentPage === 'doctor_notes.php' ? 'active' : '' ?>">
             <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
         </a></li>
         <li><a href="doctor_profile.php" class="<?= $currentPage === 'doctor_profile.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-circle"></i> <span>Profile</span>
+            <i class="bi bi-person-circle"></i> <span>My Profile</span>
         </a></li>
         <li><a href="doctor_schedule.php" class="<?= $currentPage === 'doctor_schedule.php' ? 'active' : '' ?>">
-            <i class="bi bi-calendar3"></i> <span>Schedule</span>
+            <i class="bi bi-calendar3"></i> <span>My Schedule</span>
         </a></li>
         <li><a href="doctor_report.php" class="<?= $currentPage === 'doctor_report.php' ? 'active' : '' ?>">
-            <i class="bi bi-graph-up"></i> <span>Reports</span>
+            <i class="bi bi-graph-up"></i> <span>My Reports</span>
         </a></li>
     </ul>
-</aside>
+  </aside>
 
-<!-- Header -->
-<header class="header header-expanded" id="header">
+  <!-- Header -->
+  <header class="header header-expanded" id="header">
     <div class="d-flex align-items-center">
         <button class="toggle-sidebar me-3" id="sidebarToggle">
             <i class="bi bi-list"></i>
         </button>
-        <h1 class="header-title">Medical Clinic Notify+</h1>
+        <h1 class="header-title">My Appointments - Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?></h1>
     </div>
     
     <div class="header-actions">
+        <span class="text-muted me-3">
+            <?= htmlspecialchars($doctorInfo['Specialization']) ?>
+        </span>
         <button onclick="printDashboard()" class="btn btn-sm btn-light no-print ms-2">
             <i class="bi bi-printer"></i> Print
         </button>
     </div>
-</header>
+  </header>
 
-<!-- Sidebar overlay -->
-<div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <!-- Sidebar overlay -->
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-    <main class="main-content main-expanded" id="mainContent">
-        <div class="row g-3 mb-4">
-            <?php
-            // Calculate stats
-            $totalUsers = $conn->query("SELECT COUNT(DISTINCT students.StudentID) as total FROM students INNER JOIN appointments ON students.StudentID = appointments.StudentID")->fetch_assoc()['total'] ?? 0;
-            ?>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
-                <div class="card shadow-sm border-0 text-center py-3 h-100">
-                    <div class="mb-2"><i class="bi bi-people-fill" style="font-size:1.7rem;color:#1976d2;"></i></div>
-                    <div class="fw-bold" style="font-size:1.05rem;">Total Users</div>
-                    <div class="fs-5 text-primary"><?php echo $totalUsers; ?></div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
-                <div class="card shadow-sm border-0 text-center py-3 h-100">
-                    <div class="mb-2"><i class="bi bi-hourglass-split" style="font-size:1.5rem;color:#f9a825;"></i></div>
-                    <div class="fw-bold" style="font-size:0.98rem;">Pending</div>
-                    <div class="fs-6"><span class="badge bg-warning text-dark"><?php echo $statusCounts['Pending']; ?></span></div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
-                <div class="card shadow-sm border-0 text-center py-3 h-100">
-                    <div class="mb-2"><i class="bi bi-check-circle-fill" style="font-size:1.5rem;color:#43a047;"></i></div>
-                    <div class="fw-bold" style="font-size:0.98rem;">Approved</div>
-                    <div class="fs-6"><span class="badge bg-success"><?php echo $statusCounts['Approved']; ?></span></div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
-                <div class="card shadow-sm border-0 text-center py-3 h-100">
-                    <div class="mb-2"><i class="bi bi-clipboard-check-fill" style="font-size:1.5rem;color:#1976d2;"></i></div>
-                    <div class="fw-bold" style="font-size:0.98rem;">Completed</div>
-                    <div class="fs-6"><span class="badge bg-primary"><?php echo $statusCounts['Completed']; ?></span></div>
-                </div>
+  <main class="main-content main-expanded" id="mainContent">
+    <!-- Page header -->
+    <div class="page-header">
+        <h1><i class="bi bi-calendar-check me-2"></i>My Appointments</h1>
+        <p class="mb-0 text-muted">
+            Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?> 
+            - Managing appointments assigned to you only
+        </p>
+    </div>
+    
+    <!-- Display success/error messages -->
+    <?php if (isset($_SESSION['success_message'])): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i><?= $_SESSION['success_message'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php unset($_SESSION['success_message']); ?>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error_message'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i><?= $_SESSION['error_message'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php unset($_SESSION['error_message']); ?>
+    <?php endif; ?>
+    
+    <!-- Statistics cards for THIS doctor only -->
+    <div class="row g-3 mb-4">
+        <?php
+        // Calculate total patients for this doctor
+        $totalPatients = $conn->prepare("SELECT COUNT(DISTINCT students.StudentID) as total FROM students INNER JOIN appointments ON students.StudentID = appointments.StudentID WHERE appointments.DoctorID = ?");
+        $totalPatients->bind_param("s", $doctorID);
+        $totalPatients->execute();
+        $totalPatientsCount = $totalPatients->get_result()->fetch_assoc()['total'] ?? 0;
+        ?>
+        <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
+            <div class="card shadow-sm border-0 text-center py-3 h-100">
+                <div class="mb-2"><i class="bi bi-people-fill" style="font-size:1.7rem;color:#1976d2;"></i></div>
+                <div class="fw-bold" style="font-size:1.05rem;">My Patients</div>
+                <div class="fs-5 text-primary"><?php echo $totalPatientsCount; ?></div>
             </div>
         </div>
-        <div class="card shadow-sm border-0 p-4">
-            <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
-                <h2 class="mb-0 flex-grow-1" style="font-weight:700; letter-spacing:0.5px; color:#011f4b;">Manage Students</h2>
-                <form method="GET" action="student_management.php" class="search-form" style="min-width:220px; max-width:350px; width:100%;">
-                    <div class="input-group shadow-sm rounded-pill overflow-hidden">
-                        <input type="text" class="form-control border-0" style="background:#f4f6fa; border-radius: 50px 0 0 50px;" placeholder="Search by Name" name="search" value="<?php echo htmlspecialchars($searchTerm); ?>">
-                        <button class="btn btn-primary px-4 rounded-end-pill" type="submit" style="background: linear-gradient(90deg,#4a90e2,#357abd); border:none; font-weight:600;">Search</button>
-                    </div>
-                </form>
+        <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
+            <div class="card shadow-sm border-0 text-center py-3 h-100">
+                <div class="mb-2"><i class="bi bi-hourglass-split" style="font-size:1.5rem;color:#f9a825;"></i></div>
+                <div class="fw-bold" style="font-size:0.98rem;">My Pending</div>
+                <div class="fs-6"><span class="badge bg-warning text-dark"><?php echo $statusCounts['Pending']; ?></span></div>
             </div>
-
-            <!-- Add filter buttons -->
-            <div class="filter-buttons mb-4">
-                <a href="?status=all<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'all' ? 'btn-primary' : 'btn-outline-primary'; ?>">
-                    All <span class="badge bg-light text-dark"><?php echo array_sum($statusCounts); ?></span>
-                </a>
-                <a href="?status=Pending<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Pending' ? 'btn-warning' : 'btn-outline-warning'; ?>">
-                    Pending <span class="badge bg-light text-dark"><?php echo $statusCounts['Pending']; ?></span>
-                </a>
-                <a href="?status=Approved<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Approved' ? 'btn-success' : 'btn-outline-success'; ?>">
-                    Approved <span class="badge bg-light text-dark"><?php echo $statusCounts['Approved']; ?></span>
-                </a>
-                <a href="?status=Completed<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Completed' ? 'btn-secondary' : 'btn-outline-secondary'; ?>">
-                    Completed <span class="badge bg-light text-dark"><?php echo $statusCounts['Completed']; ?></span>
-                </a>
-                <a href="?status=Cancelled<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Cancelled' ? 'btn-danger' : 'btn-outline-danger'; ?>">
-                    Cancelled <span class="badge bg-light text-dark"><?php echo $statusCounts['Cancelled']; ?></span>
-                </a>
-                <a href="?status=Cancellation Requested<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Cancellation Requested' ? 'btn-warning' : 'btn-outline-warning'; ?>">
-                    Cancellation Requests <span class="badge bg-light text-dark"><?php echo $statusCounts['Cancellation Requested']; ?></span>
-                </a>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
+            <div class="card shadow-sm border-0 text-center py-3 h-100">
+                <div class="mb-2"><i class="bi bi-check-circle-fill" style="font-size:1.5rem;color:#43a047;"></i></div>
+                <div class="fw-bold" style="font-size:0.98rem;">My Approved</div>
+                <div class="fs-6"><span class="badge bg-success"><?php echo $statusCounts['Approved']; ?></span></div>
             </div>
-
-            <?php if (isset($_GET['upload']) && $_GET['upload'] === 'success'): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    File uploaded successfully!
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle table-responsive">
-                    <thead>
-                        <tr>
-                            <th>User Name</th>
-                            <th>Contact Information</th>
-                            <th>Appointment Date</th>
-                            <th>Service/Reason</th>
-                            <th>Doctor</th>
-                            <th>Current Appointment Status</th>
-                            <th>Status Actions</th>
-                            <th>Upload Result <i class="bi bi-info-circle text-primary" data-bs-toggle="tooltip" title="Allowed: PDF, DOC, DOCX, JPG, PNG"></i></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($result->num_rows > 0): ?>
-                            <?php while ($row = $result->fetch_assoc()): ?>
-                            <tr>
-                                <td data-label="User Name"><?php echo htmlspecialchars($row['FirstName']) . ' ' . htmlspecialchars($row['LastName']); ?></td>
-                                <td data-label="Contact Information"><?php echo htmlspecialchars($row['ContactNumber']); ?></td>
-                                <td data-label="Appointment Date"><?php echo htmlspecialchars(date('F j, Y', strtotime($row['AppointmentDate']))); ?></td>
-                                <td data-label="Service/Reason">
-                                    <?php 
-                                    if ($row['StatusID'] == 5 || $row['StatusID'] == 4) {
-                                        echo '<div class="text-danger">';
-                                        echo '<strong>Cancellation Reason:</strong><br>';
-                                        echo htmlspecialchars($row['cancellation_reason']);
-                                        echo '</div>';
-                                    } else {
-                                        echo '<div><strong>Service/Reason:</strong><br>' . htmlspecialchars($row['Reason']) . '</div>'; 
-                                    }
-                                    ?>
-                                </td>
-                                <td data-label="Doctor">
-                                    <?php 
-                                        echo 'Dr. ' . htmlspecialchars($row['DoctorFirstName'] . ' ' . $row['DoctorLastName']); 
-                                    ?>
-                                </td>
-                                <td data-label="Current Appointment Status">
-                                    <?php
-                                    $statusText = "Pending";
-                                    $statusBadge = "<span class='badge bg-warning text-dark'>Pending</span>";
-                                    switch ($row['StatusID']) {
-                                        case 1: 
-                                            $statusText = "Pending"; 
-                                            $statusBadge = "<span class='badge bg-warning text-dark'>Pending</span>"; 
-                                            break;
-                                        case 2: 
-                                            $statusText = "Approved"; 
-                                            $statusBadge = "<span class='badge bg-success'>Approved</span>"; 
-                                            break;
-                                        case 3: 
-                                            $statusText = "Completed"; 
-                                            $statusBadge = "<span class='badge bg-primary'>Completed</span>"; 
-                                            break;
-                                        case 4: 
-                                            $statusText = "Cancelled"; 
-                                            $statusBadge = "<span class='badge bg-danger'>Cancelled</span>"; 
-                                            break;
-                                        case 5: 
-                                            $statusText = "Cancellation Requested"; 
-                                            $statusBadge = "<span class='badge bg-warning'>Cancellation Requested</span>"; 
-                                            break;
-                                    }
-                                    echo $statusBadge;
-                                    ?>
-                                </td>
-                                <td data-label="Status Actions">
-                                    <form method="POST" action="handle_cancellation.php" class="d-flex flex-column gap-1">
-                                        <input type="hidden" name="appointment_id" value="<?php echo $row['AppointmentID']; ?>">
-                                        <?php if ($row['StatusID'] == 5): // Cancellation Requested ?>
-                                            <button type="submit" name="action" value="approve" class="btn btn-danger btn-sm">
-                                                <i class="bi bi-check-lg"></i> Approve Cancellation
-                                            </button>
-                                            <button type="submit" name="action" value="reject" class="btn btn-success btn-sm">
-                                                <i class="bi bi-x-lg"></i> Reject Cancellation
-                                            </button>
-                                        <?php else: ?>
-                                            <button type="submit" name="action" value="approve_appointment" class="btn btn-success btn-sm <?php echo $row['StatusID'] == 2 ? 'disabled' : ''; ?>">
-                                                <i class="bi bi-check-lg"></i> Approve
-                                            </button>
-                                            <button type="submit" name="action" value="complete" class="btn btn-primary btn-sm <?php echo $row['StatusID'] == 3 ? 'disabled' : ''; ?>">
-                                                <i class="bi bi-check-circle"></i> Complete
-                                            </button>
-                                            <button type="submit" name="action" value="cancel" class="btn btn-danger btn-sm <?php echo $row['StatusID'] == 4 ? 'disabled' : ''; ?>">
-                                                <i class="bi bi-x-circle"></i> Cancel
-                                            </button>
-                                        <?php endif; ?>
-                                    </form>
-                                </td>
-                                <td data-label="Upload Result">
-                                    <?php
-                                    // Check if there's an uploaded file for this appointment
-                                    $fileQuery = "SELECT FilePath, FileName FROM test_results WHERE AppointmentID = ?";
-                                    $fileStmt = $conn->prepare($fileQuery);
-                                    $fileStmt->bind_param("i", $row['AppointmentID']);
-                                    $fileStmt->execute();
-                                    $fileResult = $fileStmt->get_result();
-                                    
-                                    if ($fileResult->num_rows > 0) {
-                                        $fileData = $fileResult->fetch_assoc();
-                                        echo '<div class="mb-2">';
-                                        echo '<button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#fileModal' . $row['AppointmentID'] . '">';
-                                        echo '<i class="bi bi-file-earmark-text"></i> View Uploaded File';
-                                        echo '</button>';
-                                        echo '</div>';
-                                        // Add modal for this file
-                                        echo '<div class="modal fade" id="fileModal' . $row['AppointmentID'] . '" tabindex="-1" aria-labelledby="fileModalLabel' . $row['AppointmentID'] . '" aria-hidden="true">';
-                                        echo '<div class="modal-dialog modal-xl">';
-                                        echo '<div class="modal-content">';
-                                        echo '<div class="modal-header">';
-                                        echo '<h5 class="modal-title" id="fileModalLabel' . $row['AppointmentID'] . '">' . htmlspecialchars($fileData['FileName']) . '</h5>';
-                                        echo '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>';
-                                        echo '</div>';
-                                        echo '<div class="modal-body file-preview">';
-                                        // Check file type and display accordingly
-                                        $fileExtension = strtolower(pathinfo($fileData['FilePath'], PATHINFO_EXTENSION));
-                                        if (in_array($fileExtension, ['jpg', 'jpeg', 'png'])) {
-                                            echo '<img src="' . htmlspecialchars($fileData['FilePath']) . '" alt="Uploaded File" class="img-fluid">';
-                                        } else if ($fileExtension === 'pdf') {
-                                            echo '<iframe src="' . htmlspecialchars($fileData['FilePath']) . '" class="pdf-viewer"></iframe>';
-                                        } else {
-                                            echo '<div class="text-center">';
-                                            echo '<p class="mb-3">File type not supported for preview. Please download the file to view it.</p>';
-                                            echo '<a href="' . htmlspecialchars($fileData['FilePath']) . '" class="btn btn-primary" download>Download File</a>';
-                                            echo '</div>';
-                                        }
-                                        echo '</div>';
-                                        echo '<div class="modal-footer">';
-                                        echo '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
-                                        echo '</div>';
-                                        echo '</div>';
-                                        echo '</div>';
-                                        echo '</div>';
-                                    }
-                                    ?>
-                                    <form action="upload_result.php" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
-                                        <input type="hidden" name="appointment_id" value="<?php echo $row['AppointmentID']; ?>">
-                                        <input type="file" name="result_file" id="fileInput<?php echo $row['AppointmentID']; ?>" class="d-none" accept=".pdf,.doc,.docx,.jpg,.png" required>
-                                        <label for="fileInput<?php echo $row['AppointmentID']; ?>" class="btn btn-outline-primary btn-sm mb-0"><i class="bi bi-paperclip"></i> Choose File</label>
-                                        <span class="file-chosen text-muted small d-none" id="fileName<?php echo $row['AppointmentID']; ?>"></span>
-                                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-upload"></i> Upload</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="7">No patients with appointments found.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 mb-2 mb-lg-0">
+            <div class="card shadow-sm border-0 text-center py-3 h-100">
+                <div class="mb-2"><i class="bi bi-clipboard-check-fill" style="font-size:1.5rem;color:#1976d2;"></i></div>
+                <div class="fw-bold" style="font-size:0.98rem;">My Completed</div>
+                <div class="fs-6"><span class="badge bg-primary"><?php echo $statusCounts['Completed']; ?></span></div>
             </div>
         </div>
     </div>
+    
+    <div class="card shadow-sm border-0 p-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+            <h2 class="mb-0 flex-grow-1" style="font-weight:700; letter-spacing:0.5px; color:#011f4b;">My Appointment Management</h2>
+            <form method="GET" action="doctor_student.php" class="search-form" style="min-width:220px; max-width:350px; width:100%;">
+                <div class="input-group shadow-sm rounded-pill overflow-hidden">
+                    <input type="text" class="form-control border-0" style="background:#f4f6fa; border-radius: 50px 0 0 50px;" placeholder="Search by Patient Name" name="search" value="<?php echo htmlspecialchars($searchTerm); ?>">
+                    <button class="btn btn-primary px-4 rounded-end-pill" type="submit" style="background: linear-gradient(90deg,#4a90e2,#357abd); border:none; font-weight:600;">Search</button>
+                </div>
+            </form>
+        </div>
 
-        <!-- Add Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Filter buttons -->
+        <div class="filter-buttons mb-4">
+            <a href="?status=all<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'all' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                All <span class="badge bg-light text-dark"><?php echo array_sum($statusCounts); ?></span>
+            </a>
+            <a href="?status=Pending<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Pending' ? 'btn-warning' : 'btn-outline-warning'; ?>">
+                Pending <span class="badge bg-light text-dark"><?php echo $statusCounts['Pending']; ?></span>
+            </a>
+            <a href="?status=Approved<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Approved' ? 'btn-success' : 'btn-outline-success'; ?>">
+                Approved <span class="badge bg-light text-dark"><?php echo $statusCounts['Approved']; ?></span>
+            </a>
+            <a href="?status=Completed<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Completed' ? 'btn-secondary' : 'btn-outline-secondary'; ?>">
+                Completed <span class="badge bg-light text-dark"><?php echo $statusCounts['Completed']; ?></span>
+            </a>
+            <a href="?status=Cancelled<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Cancelled' ? 'btn-danger' : 'btn-outline-danger'; ?>">
+                Cancelled <span class="badge bg-light text-dark"><?php echo $statusCounts['Cancelled']; ?></span>
+            </a>
+            <a href="?status=Cancellation Requested<?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?>" class="btn <?php echo $statusFilter === 'Cancellation Requested' ? 'btn-warning' : 'btn-outline-warning'; ?>">
+                Cancellation Requests <span class="badge bg-light text-dark"><?php echo $statusCounts['Cancellation Requested']; ?></span>
+            </a>
+        </div>
 
-        <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // DOM Elements
-        const sidebar = document.getElementById('sidebar');
-        const header = document.getElementById('header');
-        const mainContent = document.querySelector('.main-content');
-        const sidebarToggle = document.getElementById('sidebarToggle');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        
-        // Toggle Sidebar
-        function toggleSidebar() {
-            const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
-            
-            if (isSidebarCollapsed) {
-                sidebar.classList.remove('sidebar-collapsed');
-                header.classList.add('header-expanded');
-                mainContent.classList.add('main-expanded');
-                sidebarOverlay.style.display = 'none';
-            } else {
-                sidebar.classList.add('sidebar-collapsed');
-                header.classList.remove('header-expanded');
-                mainContent.classList.remove('main-expanded');
-                
-                if (window.innerWidth <= 992) {
-                    sidebarOverlay.style.display = 'block';
-                }
-            }
-        }
-        
-        // Set initial state based on screen size
-        function setInitialState() {
-            if (window.innerWidth <= 992) {
-                sidebar.classList.add('sidebar-collapsed');
-                header.classList.remove('header-expanded');
-                mainContent.classList.remove('main-expanded');
-            } else {
-                // Ensure expanded classes are applied on larger screens
-                sidebar.classList.remove('sidebar-collapsed');
-                header.classList.add('header-expanded');
-                mainContent.classList.add('main-expanded');
-            }
-        }
-        
-        // Toggle sidebar event
-        sidebarToggle.addEventListener('click', toggleSidebar);
-        
-        // Handle overlay click
-        sidebarOverlay.addEventListener('click', function() {
-            if (!sidebar.classList.contains('sidebar-collapsed')) {
-                toggleSidebar();
-            }
-        });
-        
-        // Handle window resize
-        window.addEventListener('resize', function() {
-            if (window.innerWidth <= 992) {
-                sidebar.classList.add('sidebar-collapsed');
-                header.classList.remove('header-expanded');
-                mainContent.classList.remove('main-expanded');
-            }
-        });
-        
-        // Print function
-        window.printDashboard = function() {
-            window.print();
-        }
-        
-        // Set initial state
-        setInitialState();
-    });
-</script>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-responsive">
+                <thead>
+                    <tr>
+                        <th>Patient Name</th>
+                        <th>Contact Information</th>
+                        <th>Appointment Date</th>
+                        <th>Service/Reason</th>
+                        <th>Current Status</th>
+                        <th>Actions</th>
+                        <th>Upload Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ($result->num_rows > 0): ?>
+                        <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($row['FirstName']) . ' ' . htmlspecialchars($row['LastName']); ?></td>
+                            <td><?php echo htmlspecialchars($row['ContactNumber']); ?></td>
+                            <td><?php echo htmlspecialchars(date('F j, Y', strtotime($row['AppointmentDate']))); ?></td>
+                            <td>
+                                <?php 
+                                if ($row['StatusID'] == 5 || $row['StatusID'] == 4) {
+                                    echo '<div class="text-danger">';
+                                    echo '<strong>Cancellation Reason:</strong><br>';
+                                    echo htmlspecialchars($row['cancellation_reason']);
+                                    echo '</div>';
+                                } else {
+                                    echo '<div><strong>Service/Reason:</strong><br>' . htmlspecialchars($row['Reason']) . '</div>'; 
+                                }
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                $statusText = "Pending";
+                                $statusBadge = "<span class='badge bg-warning text-dark'>Pending</span>";
+                                switch ($row['StatusID']) {
+                                    case 1: 
+                                        $statusText = "Pending"; 
+                                        $statusBadge = "<span class='badge bg-warning text-dark'>Pending</span>"; 
+                                        break;
+                                    case 2: 
+                                        $statusText = "Approved"; 
+                                        $statusBadge = "<span class='badge bg-success'>Approved</span>"; 
+                                        break;
+                                    case 3: 
+                                        $statusText = "Completed"; 
+                                        $statusBadge = "<span class='badge bg-primary'>Completed</span>"; 
+                                        break;
+                                    case 4: 
+                                        $statusText = "Cancelled"; 
+                                        $statusBadge = "<span class='badge bg-danger'>Cancelled</span>"; 
+                                        break;
+                                    case 5: 
+                                        $statusText = "Cancellation Requested"; 
+                                        $statusBadge = "<span class='badge bg-warning'>Cancellation Requested</span>"; 
+                                        break;
+                                }
+                                echo $statusBadge;
+                                ?>
+                            </td>
+                            <td>
+                                <form method="POST" action="doctor_student.php" class="d-flex flex-column gap-1">
+                                    <input type="hidden" name="appointment_id" value="<?php echo $row['AppointmentID']; ?>">
+                                    <?php if ($row['StatusID'] == 5): // Cancellation Requested ?>
+                                        <button type="submit" name="action" value="approve" class="btn btn-danger btn-sm">
+                                            <i class="bi bi-check-lg"></i> Approve Cancellation
+                                        </button>
+                                        <button type="submit" name="action" value="reject" class="btn btn-success btn-sm">
+                                            <i class="bi bi-x-lg"></i> Reject Cancellation
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="submit" name="action" value="approve_appointment" class="btn btn-success btn-sm <?php echo $row['StatusID'] == 2 || $row['StatusID'] == 3 ? 'disabled' : ''; ?>">
+                                            <i class="bi bi-check-lg"></i> Approve
+                                        </button>
+                                        <button type="submit" name="action" value="complete" class="btn btn-primary btn-sm <?php echo $row['StatusID'] == 3 ? 'disabled' : ''; ?>">
+                                            <i class="bi bi-check-circle"></i> Complete
+                                        </button>
+                                        <button type="submit" name="action" value="cancel" class="btn btn-danger btn-sm <?php echo $row['StatusID'] == 4 ? 'disabled' : ''; ?>">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                    <?php endif; ?>
+                                </form>
+                            </td>
+                            <td>
+                                <?php
+                                // Check if there's an uploaded file for this appointment
+                                $fileQuery = "SELECT FilePath, FileName FROM test_results WHERE AppointmentID = ?";
+                                $fileStmt = $conn->prepare($fileQuery);
+                                $fileStmt->bind_param("i", $row['AppointmentID']);
+                                $fileStmt->execute();
+                                $fileResult = $fileStmt->get_result();
+                                
+                                if ($fileResult->num_rows > 0) {
+                                    $fileData = $fileResult->fetch_assoc();
+                                    echo '<div class="mb-2">';
+                                    echo '<a href="' . htmlspecialchars($fileData['FilePath']) . '" target="_blank" class="btn btn-sm btn-info">';
+                                    echo '<i class="bi bi-file-earmark-text"></i> View File';
+                                    echo '</a>';
+                                    echo '</div>';
+                                }
+                                ?>
+                                <form action="upload_result.php" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
+                                    <input type="hidden" name="appointment_id" value="<?php echo $row['AppointmentID']; ?>">
+                                    <input type="file" name="result_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.jpg,.png" required>
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-upload"></i> Upload</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No appointments found for your account.</p>
+                                <p class="text-muted">Patients need to book appointments with you to see them here.</p>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+  </main>
+
+  <!-- Add Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Your existing JavaScript for sidebar toggle -->
+  <script>
+    // Add your existing sidebar toggle JavaScript here
+    window.printDashboard = function() {
+        window.print();
+    }
+  </script>
 </body>
 </html>

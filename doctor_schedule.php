@@ -4,13 +4,28 @@ include 'config.php';
 
 // Check if doctor is logged in
 if (!isset($_SESSION['doctor_id'])) {
-    // Redirect to login or show error
-    header("Location: login.php");
+    header("Location: doctor_login.php");
     exit();
 }
 
-// Get the logged-in doctor ID from session
+// Get the logged-in doctor's unique ID from session
 $doctorID = $_SESSION['doctor_id'];
+
+// Verify doctor exists and get their information
+$doctor_verify_sql = "SELECT * FROM doctors WHERE DoctorID = ? AND Status = 'Active'";
+$doctor_verify_stmt = $conn->prepare($doctor_verify_sql);
+$doctor_verify_stmt->bind_param("s", $doctorID);
+$doctor_verify_stmt->execute();
+$doctor_verify_result = $doctor_verify_stmt->get_result();
+
+if ($doctor_verify_result->num_rows === 0) {
+    session_destroy();
+    header("Location: doctor_login.php?error=invalid_session");
+    exit();
+}
+
+$doctorInfo = $doctor_verify_result->fetch_assoc();
+
 // Process form submissions
 $message = '';
 $alertType = '';
@@ -24,19 +39,32 @@ if (isset($_POST['add_timeslot'])) {
     if (!empty($day) && !empty($startTime) && !empty($endTime)) {
         // Check if the start time is before end time
         if (strtotime($startTime) < strtotime($endTime)) {
-            $sql = "INSERT INTO timeslots (DoctorID, AvailableDay, StartTime, EndTime, IsAvailable) 
-                    VALUES (?, ?, ?, ?, 1)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("isss", $doctorID, $day, $startTime, $endTime);
-
-            if ($stmt->execute()) {
-                $message = "Time slot added successfully!";
-                $alertType = "success";
+            // Check for duplicate time slot
+            $check_sql = "SELECT SlotID FROM timeslots WHERE DoctorID = ? AND AvailableDay = ? AND StartTime = ? AND EndTime = ?";
+            $check_stmt = $conn->prepare($check_sql);
+            $check_stmt->bind_param("ssss", $doctorID, $day, $startTime, $endTime);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+            
+            if ($check_result->num_rows > 0) {
+                $message = "This time slot already exists for the selected day.";
+                $alertType = "warning";
             } else {
-                $message = "Error adding time slot: " . $conn->error;
-                $alertType = "danger";
+                $sql = "INSERT INTO timeslots (DoctorID, AvailableDay, StartTime, EndTime, IsAvailable) 
+                        VALUES (?, ?, ?, ?, 1)";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("ssss", $doctorID, $day, $startTime, $endTime); // Fixed: all strings
+                
+                if ($stmt->execute()) {
+                    $message = "Time slot added successfully!";
+                    $alertType = "success";
+                } else {
+                    $message = "Error adding time slot: " . $conn->error;
+                    $alertType = "danger";
+                }
+                $stmt->close();
             }
-            $stmt->close();
+            $check_stmt->close();
         } else {
             $message = "Start time must be before end time.";
             $alertType = "warning";
@@ -47,7 +75,7 @@ if (isset($_POST['add_timeslot'])) {
     }
 }
 
-// Block off dates
+// Block off dates - ONLY for this doctor
 if (isset($_POST['block_date'])) {
     $blockDate = $_POST['block_date'] ?? '';
     $reason = $_POST['block_reason'] ?? '';
@@ -55,19 +83,32 @@ if (isset($_POST['block_date'])) {
     if (!empty($blockDate)) {
         // Check if date is not in the past
         if (strtotime($blockDate) >= strtotime(date('Y-m-d'))) {
-            $sql = "INSERT INTO blocked_dates (DoctorID, BlockedDate, Reason) 
-                    VALUES (?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("sss", $doctorID, $blockDate, $reason);
-
-            if ($stmt->execute()) {
-                $message = "Date blocked successfully!";
-                $alertType = "success";
+            // Check if date is already blocked
+            $check_sql = "SELECT BlockID FROM blocked_dates WHERE DoctorID = ? AND BlockedDate = ?";
+            $check_stmt = $conn->prepare($check_sql);
+            $check_stmt->bind_param("ss", $doctorID, $blockDate);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+            
+            if ($check_result->num_rows > 0) {
+                $message = "This date is already blocked.";
+                $alertType = "warning";
             } else {
-                $message = "Error blocking date: " . $conn->error;
-                $alertType = "danger";
+                $sql = "INSERT INTO blocked_dates (DoctorID, BlockedDate, Reason) 
+                        VALUES (?, ?, ?)";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("sss", $doctorID, $blockDate, $reason);
+                
+                if ($stmt->execute()) {
+                    $message = "Date blocked successfully!";
+                    $alertType = "success";
+                } else {
+                    $message = "Error blocking date: " . $conn->error;
+                    $alertType = "danger";
+                }
+                $stmt->close();
             }
-            $stmt->close();
+            $check_stmt->close();
         } else {
             $message = "Cannot block dates in the past.";
             $alertType = "warning";
@@ -78,50 +119,76 @@ if (isset($_POST['block_date'])) {
     }
 }
 
-// Remove time slot
+// Remove time slot - ONLY for this doctor
 if (isset($_GET['remove_slot']) && is_numeric($_GET['remove_slot'])) {
     $slotID = $_GET['remove_slot'];
 
-    $sql = "DELETE FROM timeslots WHERE SlotID = ? AND DoctorID = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ii", $slotID, $doctorID);
-
-    if ($stmt->execute()) {
-        $message = "Time slot removed successfully!";
-        $alertType = "success";
-    } else {
-        $message = "Error removing time slot: " . $conn->error;
+    // Verify the slot belongs to this doctor
+    $verify_sql = "SELECT SlotID FROM timeslots WHERE SlotID = ? AND DoctorID = ?";
+    $verify_stmt = $conn->prepare($verify_sql);
+    $verify_stmt->bind_param("is", $slotID, $doctorID);
+    $verify_stmt->execute();
+    $verify_result = $verify_stmt->get_result();
+    
+    if ($verify_result->num_rows === 0) {
+        $message = "You can only remove your own time slots.";
         $alertType = "danger";
+    } else {
+        $sql = "DELETE FROM timeslots WHERE SlotID = ? AND DoctorID = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("is", $slotID, $doctorID); // Fixed: slotID is int, doctorID is string
+        
+        if ($stmt->execute()) {
+            $message = "Time slot removed successfully!";
+            $alertType = "success";
+        } else {
+            $message = "Error removing time slot: " . $conn->error;
+            $alertType = "danger";
+        }
+        $stmt->close();
     }
-    $stmt->close();
+    $verify_stmt->close();
 }
 
-// Remove blocked date
+// Remove blocked date - ONLY for this doctor
 if (isset($_GET['remove_block']) && is_numeric($_GET['remove_block'])) {
     $blockID = $_GET['remove_block'];
 
-    $sql = "DELETE FROM blocked_dates WHERE BlockID = ? AND DoctorID = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ii", $blockID, $doctorID);
-
-    if ($stmt->execute()) {
-        $message = "Blocked date removed successfully!";
-        $alertType = "success";
-    } else {
-        $message = "Error removing blocked date: " . $conn->error;
+    // Verify the blocked date belongs to this doctor
+    $verify_sql = "SELECT BlockID FROM blocked_dates WHERE BlockID = ? AND DoctorID = ?";
+    $verify_stmt = $conn->prepare($verify_sql);
+    $verify_stmt->bind_param("is", $blockID, $doctorID);
+    $verify_stmt->execute();
+    $verify_result = $verify_stmt->get_result();
+    
+    if ($verify_result->num_rows === 0) {
+        $message = "You can only remove your own blocked dates.";
         $alertType = "danger";
+    } else {
+        $sql = "DELETE FROM blocked_dates WHERE BlockID = ? AND DoctorID = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("is", $blockID, $doctorID); // Fixed: blockID is int, doctorID is string
+        
+        if ($stmt->execute()) {
+            $message = "Blocked date removed successfully!";
+            $alertType = "success";
+        } else {
+            $message = "Error removing blocked date: " . $conn->error;
+            $alertType = "danger";
+        }
+        $stmt->close();
     }
-    $stmt->close();
+    $verify_stmt->close();
 }
 
-// Get current time slots
+// Get current time slots - ONLY for this doctor
 $currentTimeSlots = [];
 $sql = "SELECT SlotID, AvailableDay, StartTime, EndTime 
         FROM timeslots 
         WHERE DoctorID = ? 
         ORDER BY FIELD(AvailableDay, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), StartTime";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $doctorID);
+$stmt->bind_param("s", $doctorID); // Fixed: string binding
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -133,14 +200,14 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Get blocked dates
+// Get blocked dates - ONLY for this doctor
 $blockedDates = [];
 $sql = "SELECT BlockID, BlockedDate, Reason 
         FROM blocked_dates 
         WHERE DoctorID = ? AND BlockedDate >= CURDATE()
         ORDER BY BlockedDate";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $doctorID);
+$stmt->bind_param("s", $doctorID); // Fixed: string binding
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -161,7 +228,7 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clinic Appointment System - Schedule Configuration</title>
+  <title>My Schedule - Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?> - Medical Clinic</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -428,27 +495,28 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
 <body>
   <!-- Sidebar -->
 <div class="sidebar" id="sidebar">
-  <img src="MedicalClinicLogo.png" alt="Logo" />
+  <img src="img/GCLINIC.png" alt="Medical Clinic Logo" />
+  <div class="sidebar-divider"></div>
   <a href="doctor_dashboard.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_dashboard.php' ? 'active' : '' ?>">
-    <i class="bi bi-speedometer2"></i> Dashboard Overview
+    <i class="bi bi-speedometer2"></i> Dashboard
   </a>
   <a href="doctor_student.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_student.php' ? 'active' : '' ?>">
-    <i class="bi bi-calendar-check"></i> Appointment Management
+    <i class="bi bi-calendar-check"></i> My Appointments
   </a>
-    <a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
-    <i class="bi bi-person-lines-fill"></i> Patient Records Viewer
+  <a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
+    <i class="bi bi-person-lines-fill"></i> My Patients
   </a>
-    <a href="doctor_notes.php" class="<?= $current_page === 'doctor_notes.php' ? 'active' : '' ?>">
+  <a href="doctor_notes.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_notes.php' ? 'active' : '' ?>">
     <i class="bi bi-journal-text"></i> Patient Notes
   </a>
   <a href="doctor_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_profile.php' ? 'active' : '' ?>">
-    <i class="bi bi-person-circle"></i> Doctor Profile
+    <i class="bi bi-person-circle"></i> My Profile
   </a>
   <a href="doctor_schedule.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_schedule.php' ? 'active' : '' ?>">
-    <i class="bi bi-calendar3"></i> Schedule Configuration
+    <i class="bi bi-calendar3"></i> My Schedule
   </a>
   <a href="doctor_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_report.php' ? 'active' : '' ?>">
-    <i class="bi bi-graph-up"></i> Reports & Analytics
+    <i class="bi bi-graph-up"></i> My Reports
   </a>
 </div>
 
@@ -462,14 +530,17 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
 
   <!-- Top bar -->
   <div class="top-bar">
-    Clinic Appointment System - Schedule Configuration
-  </div>
+    My Schedule Configuration - Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?>
+    <div style="font-size: 14px; opacity: 0.9;">
+        <?= htmlspecialchars($doctorInfo['Specialization']) ?>
+    </div>
+</div>
 
   <!-- Main Content -->
   <div class="main-content">
     <div class="schedule-container">
-      <h1><i class="bi bi-calendar3 me-2"></i>Schedule Configuration</h1>
-      <p class="lead mb-4">Configure your available days and time slots for appointments</p>
+      <h1><i class="bi bi-calendar3 me-2"></i>My Schedule Configuration</h1>
+      <p class="lead mb-4">Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?> - Configure your available days and time slots for appointments</p>
       
       <?php if (!empty($message)): ?>
         <div class="alert alert-<?= $alertType ?> alert-dismissible fade show" role="alert">

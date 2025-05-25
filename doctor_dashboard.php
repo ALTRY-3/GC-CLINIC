@@ -2,8 +2,29 @@
 session_start();
 include 'config.php';
 
-// TEMPORARY: Hardcoded DoctorID for testing (replace with a real one)
-$doctorID = 'DOC-2025-0001'; // or just 5, 7, etc., based on your `doctors` table
+// Check if doctor is logged in
+if (!isset($_SESSION['doctor_id'])) {
+    header("Location: doctor_login.php");
+    exit();
+}
+
+// Get the logged-in doctor's unique ID from session
+$doctorID = $_SESSION['doctor_id'];
+
+// Verify doctor exists and get their information
+$doctor_verify_sql = "SELECT * FROM doctors WHERE DoctorID = ? AND Status = 'Active'";
+$doctor_verify_stmt = $conn->prepare($doctor_verify_sql);
+$doctor_verify_stmt->bind_param("s", $doctorID);
+$doctor_verify_stmt->execute();
+$doctor_verify_result = $doctor_verify_stmt->get_result();
+
+if ($doctor_verify_result->num_rows === 0) {
+    session_destroy();
+    header("Location: doctor_login.php?error=invalid_session");
+    exit();
+}
+
+$doctorInfo = $doctor_verify_result->fetch_assoc();
 
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
@@ -11,7 +32,7 @@ $week_end = date('Y-m-d', strtotime('sunday this week'));
 $month_start = date('Y-m-01');
 $month_end = date('Y-m-t');
 
-// Upcoming Appointments
+// Upcoming Appointments - ONLY for this logged-in doctor
 $sql = "SELECT a.*, s.StartTime, s.EndTime, st.FirstName, st.LastName 
         FROM appointments a
         JOIN timeslots s ON a.SlotID = s.SlotID
@@ -30,7 +51,7 @@ while ($row = $result->fetch_assoc()) {
     $appointments[] = $row;
 }
 
-// Patients Handled Count (Total) - Kept for reference but not displayed anymore
+// Patients Handled Count (Total) - ONLY for this doctor
 $count_sql = "SELECT COUNT(*) AS count FROM appointments WHERE DoctorID = ? AND statusID = 3";
 $count_stmt = $conn->prepare($count_sql);
 $count_stmt->bind_param("s", $doctorID);
@@ -38,7 +59,7 @@ $count_stmt->execute();
 $count_result = $count_stmt->get_result();
 $handled_count = $count_result->fetch_assoc()['count'];
 
-// Today's Patients Count
+// Today's Patients Count - ONLY for this doctor
 $today_sql = "SELECT COUNT(*) AS count FROM appointments 
               WHERE DoctorID = ? 
               AND AppointmentDate = ? 
@@ -49,7 +70,7 @@ $today_stmt->execute();
 $today_result = $today_stmt->get_result();
 $today_count = $today_result->fetch_assoc()['count'];
 
-// This Week's Patients Count
+// This Week's Patients Count - ONLY for this doctor
 $week_sql = "SELECT COUNT(*) AS count FROM appointments 
              WHERE DoctorID = ? 
              AND AppointmentDate BETWEEN ? AND ? 
@@ -60,7 +81,7 @@ $week_stmt->execute();
 $week_result = $week_stmt->get_result();
 $week_count = $week_result->fetch_assoc()['count'];
 
-// This Month's Patients Count
+// This Month's Patients Count - ONLY for this doctor
 $month_sql = "SELECT COUNT(*) AS count FROM appointments 
               WHERE DoctorID = ? 
               AND AppointmentDate BETWEEN ? AND ? 
@@ -78,13 +99,15 @@ $month_count = $month_result->fetch_assoc()['count'];
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clinic Appointment System - Dashboard</title>
+  <title>Dashboard - Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?> - Medical Clinic</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Keep all your existing CSS styles exactly as they are -->
   <style>
+    /* Your existing CSS styles remain exactly the same */
     :root {
         --primary: #2e7d32;
         --primary-light: #60ad5e;
@@ -109,6 +132,7 @@ $month_count = $month_result->fetch_assoc()['count'];
         --radius-lg: 20px;
     }
     
+    /* All your existing CSS remains the same - I won't repeat it all here for brevity */
     body {
         margin: 0;
         font-family: 'Poppins', sans-serif;
@@ -794,50 +818,58 @@ $month_count = $month_result->fetch_assoc()['count'];
 </head>
 <body>
 
-<!-- Replace the existing sidebar with this -->
+<!-- Your existing sidebar with updated menu items -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
     </div>
     <div class="sidebar-divider"></div>
-    <!-- Updated sidebar menu structure -->
+    <!-- Updated sidebar menu to match doctor_student.php -->
     <ul class="sidebar-menu">
         <li><a href="doctor_dashboard.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_dashboard.php' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
         </a></li>
         <li><a href="doctor_student.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_student.php' ? 'active' : '' ?>">
-            <i class="bi bi-calendar-check"></i> <span>Appointments</span>
+            <i class="bi bi-calendar-check"></i> <span>My Appointments</span>
         </a></li>
         <li><a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-lines-fill"></i> <span>Patient Records</span>
+            <i class="bi bi-person-lines-fill"></i> <span>My Patients</span>
         </a></li>
         <li><a href="doctor_notes.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_notes.php' ? 'active' : '' ?>">
             <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
         </a></li>
         <li><a href="doctor_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_profile.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-circle"></i> <span>Profile</span>
+            <i class="bi bi-person-circle"></i> <span>My Profile</span>
         </a></li>
         <li><a href="doctor_schedule.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_schedule.php' ? 'active' : '' ?>">
-            <i class="bi bi-calendar3"></i> <span>Schedule</span>
+            <i class="bi bi-calendar3"></i> <span>My Schedule</span>
         </a></li>
         <li><a href="doctor_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_report.php' ? 'active' : '' ?>">
-            <i class="bi bi-graph-up"></i> <span>Reports</span>
+            <i class="bi bi-graph-up"></i> <span>My Reports</span>
         </a></li>
     </ul>
 </aside>
 
-<!-- Replace the header with this simplified version -->
+<!-- Updated header with doctor-specific information -->
 <header class="header header-expanded" id="header">
     <div class="d-flex align-items-center">
         <button class="toggle-sidebar me-3" id="sidebarToggle">
             <i class="bi bi-list"></i>
         </button>
-        <h1 class="header-title">Medical Clinic Notify+</h1>
+        <h1 class="header-title">Dashboard - Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?></h1>
     </div>
     
     <div class="header-actions">
-        <!-- Only keep the print button -->
-        <button onclick="printDashboard()" class="btn btn-sm btn-light no-print ms-2">
+        <span class="text-muted me-3">
+            <?= htmlspecialchars($doctorInfo['Specialization']) ?>
+        </span>
+        <a href="doctor_profile.php" class="btn btn-sm btn-outline-primary me-2">
+            <i class="bi bi-person-circle"></i> Profile
+        </a>
+        <a href="doctor_logout.php" class="btn btn-sm btn-outline-danger me-2">
+            <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+        <button onclick="printDashboard()" class="btn btn-sm btn-light no-print">
             <i class="bi bi-printer"></i> Print
         </button>
     </div>
@@ -846,86 +878,148 @@ $month_count = $month_result->fetch_assoc()['count'];
 <!-- Sidebar overlay -->
 <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-<!-- Replace the current main content div with this proper main element -->
+<!-- Updated main content with personalized welcome -->
 <main class="main-content main-expanded" id="mainContent">
-    <!-- Welcome header -->
+    <!-- Personalized welcome header -->
     <div class="welcome-banner">
         <div class="avatar">
             <i class="bi bi-person-circle"></i>
         </div>
         <div class="welcome-text">
-            <h2>Welcome, Doctor</h2>
-            <p>Here's your dashboard overview</p>
+            <h2>Welcome, Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?></h2>
+            <p><?= htmlspecialchars($doctorInfo['Specialization']) ?> - Your personalized dashboard</p>
+            <small class="text-muted">
+                Last login: <?= isset($_SESSION['login_time']) ? date('M d, Y h:i A', strtotime($_SESSION['login_time'])) : 'Unknown' ?>
+            </small>
         </div>
     </div>
 
-    <!-- Patient Stats Boxes -->
+    <!-- Patient Stats Boxes - Now showing ONLY this doctor's data -->
     <div class="stats-container">
         <div class="stat-box today">
             <div class="stat-icon"><i class="bi bi-calendar-day"></i></div>
             <div class="stat-value"><?= $today_count ?></div>
-            <div class="stat-label">Patients Today</div>
+            <div class="stat-label">My Patients Today</div>
         </div>
         
         <div class="stat-box week">
             <div class="stat-icon"><i class="bi bi-calendar-week"></i></div>
             <div class="stat-value"><?= $week_count ?></div>
-            <div class="stat-label">Patients This Week</div>
+            <div class="stat-label">My Patients This Week</div>
         </div>
         
         <div class="stat-box month">
             <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
             <div class="stat-value"><?= $month_count ?></div>
-            <div class="stat-label">Patients This Month</div>
+            <div class="stat-label">My Patients This Month</div>
+        </div>
+        
+        <div class="stat-box total">
+            <div class="stat-icon"><i class="bi bi-people"></i></div>
+            <div class="stat-value"><?= $handled_count ?></div>
+            <div class="stat-label">Total Completed</div>
         </div>
     </div>
 
     <div class="card">
-        <h4>Upcoming Appointments (Today to This Week)</h4>
+        <h4><i class="bi bi-calendar-check me-2"></i>My Upcoming Appointments</h4>
+        <p class="text-muted mb-3">Appointments scheduled for you from today through this week</p>
         <div class="table-responsive">
             <table class="table">
                 <thead>
                     <tr>
                         <th>Appointment ID</th>
-                        <th>Student Name</th>
+                        <th>Patient Name</th>
                         <th>Date</th>
                         <th>Time Slot</th>
                         <th>Reason</th>
                         <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (count($appointments) > 0): ?>
                     <?php foreach ($appointments as $row): ?>
                         <tr>
-                            <td><?= $row['AppointmentID'] ?></td>
-                            <td><?= $row['FirstName'] . ' ' . $row['LastName'] ?></td>
-                            <td><?= date('M d, Y', strtotime($row['AppointmentDate'])) ?></td>
-                            <td><?= date('h:i A', strtotime($row['StartTime'])) . ' - ' . date('h:i A', strtotime($row['EndTime'])) ?></td>
-                            <td><?= htmlspecialchars($row['Reason']) ?></td>
-                            <td>
+                            <td data-label="Appointment ID"><?= $row['AppointmentID'] ?></td>
+                            <td data-label="Patient Name"><?= htmlspecialchars($row['FirstName'] . ' ' . $row['LastName']) ?></td>
+                            <td data-label="Date"><?= date('M d, Y', strtotime($row['AppointmentDate'])) ?></td>
+                            <td data-label="Time Slot"><?= date('h:i A', strtotime($row['StartTime'])) . ' - ' . date('h:i A', strtotime($row['EndTime'])) ?></td>
+                            <td data-label="Reason"><?= htmlspecialchars($row['Reason']) ?></td>
+                            <td data-label="Status">
                                 <?php
                                 switch ($row['statusID']) {
-                                    case 1: echo "Pending"; break;
-                                    case 2: echo "Approved"; break;
-                                    case 3: echo "Completed"; break;
-                                    case 4: echo "Cancelled"; break;
-                                    case 5: echo "Cancel Requested"; break;
-                                    default: echo "Unknown";
+                                    case 1: echo '<span class="badge bg-warning">Pending</span>'; break;
+                                    case 2: echo '<span class="badge bg-success">Approved</span>'; break;
+                                    case 3: echo '<span class="badge bg-primary">Completed</span>'; break;
+                                    case 4: echo '<span class="badge bg-danger">Cancelled</span>'; break;
+                                    case 5: echo '<span class="badge bg-warning">Cancel Requested</span>'; break;
+                                    default: echo '<span class="badge bg-secondary">Unknown</span>';
                                 }
                                 ?>
+                            </td>
+                            <td data-label="Actions">
+                                <a href="doctor_student.php?appointment_id=<?= $row['AppointmentID'] ?>" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Manage
+                                </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr><td colspan="6" style="text-align:center;">No upcoming appointments</td></tr>
+                    <tr>
+                        <td colspan="7" style="text-align:center; padding: 40px;">
+                            <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3">No upcoming appointments scheduled for you</p>
+                            <p class="text-muted">When patients book appointments with you, they'll appear here.</p>
+                        </td>
+                    </tr>
                 <?php endif; ?>
                 </tbody>
             </table>
         </div>
+        
+        <?php if (count($appointments) > 0): ?>
+            <div class="text-center mt-3">
+                <a href="doctor_student.php" class="btn btn-primary">
+                    <i class="bi bi-calendar-check me-2"></i>View All My Appointments
+                </a>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <h4><i class="bi bi-lightning me-2"></i>Quick Actions</h4>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <a href="doctor_student.php" class="btn btn-outline-primary w-100 p-3">
+                    <i class="bi bi-calendar-check d-block mb-2" style="font-size: 2rem;"></i>
+                    Manage My Appointments
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="student_viewer.php" class="btn btn-outline-success w-100 p-3">
+                    <i class="bi bi-people d-block mb-2" style="font-size: 2rem;"></i>
+                    View My Patients
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="doctor_schedule.php" class="btn btn-outline-info w-100 p-3">
+                    <i class="bi bi-calendar3 d-block mb-2" style="font-size: 2rem;"></i>
+                    Update My Schedule
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="doctor_profile.php" class="btn btn-outline-warning w-100 p-3">
+                    <i class="bi bi-person-gear d-block mb-2" style="font-size: 2rem;"></i>
+                    Edit My Profile
+                </a>
+            </div>
+        </div>
     </div>
 </main>
 
+<!-- Keep all your existing JavaScript exactly as it is -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // DOM Elements
