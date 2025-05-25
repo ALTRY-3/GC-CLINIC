@@ -2,17 +2,7 @@
 session_start();
 require 'config.php';
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "medicalclinicnotify";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
+// Remove the duplicate database connection since config.php already provides it
 // Check for remember me cookie
 if (!isset($_SESSION['adminID']) && isset($_COOKIE['admin_remember_email'])) {
     $rememberedEmail = $_COOKIE['admin_remember_email'];
@@ -28,20 +18,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['password'];
     $remember = isset($_POST['remember']) ? true : false;
 
-    // Query to fetch admin details using email
-    $stmt = $conn->prepare("SELECT adminID, adminEmail, password FROM admins WHERE adminEmail = ?");
+    // Query to fetch admin details using email with plain text password comparison
+    $stmt = $conn->prepare("SELECT adminID, adminEmail, password, adminName, adminLastName FROM admins WHERE adminEmail = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result->num_rows == 1) {
         $row = $result->fetch_assoc();
-        if (password_verify($password, $row['password'])) {
-            // Store email in session for OTP verification
-            $_SESSION['adminEmail'] = $email;
+        
+        // Direct password comparison (no hashing)
+        if ($password === $row['password']) {
+            // Store admin info in session
+            $_SESSION['adminID'] = $row['adminID'];
+            $_SESSION['adminEmail'] = $row['adminEmail'];
+            $_SESSION['adminName'] = $row['adminName'];
+            $_SESSION['adminLastName'] = $row['adminLastName'];
+            $_SESSION['login_time'] = date('Y-m-d H:i:s');
             
-            // Redirect to OTP verification
-            header("Location: admin_otp.php");
+            // Handle remember me functionality
+            if ($remember) {
+                setcookie('admin_remember_email', $email, time() + (86400 * 30), "/"); // 30 days
+            } else {
+                // Clear remember me cookie if unchecked
+                if (isset($_COOKIE['admin_remember_email'])) {
+                    setcookie('admin_remember_email', '', time() - 3600, "/");
+                }
+            }
+            
+            // Redirect to admin profile
+            header("Location: admin_profile.php");
             exit();
         } else {
             $error_message = "Invalid password";
@@ -61,11 +67,10 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login | Medical Clinic Notify+</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>Admin Login - Medical Clinic Notify+</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -78,14 +83,14 @@ $conn->close();
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, rgb(141, 206, 243) 0%, #011f4b 100%);
-            padding: 20px;
+            background: linear-gradient(135deg, #29cb3e 0%, #00700f 100%);
+            padding: 10px;
             position: relative;
-            overflow-x: hidden;
+            overflow: hidden;
         }
         .login-container {
             display: flex;
-            width: 90%;
+            width: 95%;
             max-width: 1200px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
@@ -93,37 +98,46 @@ $conn->close();
             overflow: hidden;
             position: relative;
             backdrop-filter: blur(10px);
+            height: 90vh;
         }
         .animation-container {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px;
+            padding: 20px;
             position: relative;
             overflow: hidden;
-            background: rgb(141, 206, 243);
+            background: rgba(41, 203, 62, 0.1);
+            height: 100%;
         }
         .animation-container img {
             width: 100%;
-            max-width: 300px;
+            max-width: 400px;
             height: auto;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease;
+            object-fit: contain;
+        }
+        .animation-container img:hover {
+            transform: scale(1.02);
         }
         .form-container {
             flex: 1;
-            padding: 50px;
+            padding: 30px;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            height: 100%;
+            overflow-y: auto;
         }
         .form-header {
             margin-bottom: 30px;
             text-align: center;
         }
         .form-header h2 {
-            color: #011f4b;
+            color: rgb(0, 0, 0);
             font-size: 28px;
             font-weight: 600;
             margin-bottom: 10px;
@@ -154,9 +168,9 @@ $conn->close();
         }
         .form-group input:focus {
             outline: none;
-            border-color: #011f4b;
+            border-color: #29cb3e;
             background: #fff;
-            box-shadow: 0 0 0 4px rgba(1, 31, 75, 0.1);
+            box-shadow: 0 0 0 4px rgba(41, 203, 62, 0.1);
         }
         .right-icon {
             position: absolute;
@@ -168,12 +182,12 @@ $conn->close();
             z-index: 2;
         }
         .right-icon:hover {
-            color: #011f4b;
+            color: #29cb3e;
         }
         .submit-btn {
             width: 100%;
             padding: 12px;
-            background: #011f4b;
+            background: #29cb3e;
             color: white;
             border: none;
             border-radius: 10px;
@@ -184,9 +198,9 @@ $conn->close();
             margin-top: 10px;
         }
         .submit-btn:hover {
-            background: #024351;
+            background: #005703;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(1, 31, 75, 0.2);
+            box-shadow: 0 5px 15px rgba(0, 112, 15, 0.2);
         }
         .register-link {
             text-align: center;
@@ -210,9 +224,6 @@ $conn->close();
             margin-top: 10px;
             text-align: center;
             display: block;
-        }
-        .remember-me {
-            margin-bottom: 15px;
         }
         .checkbox-container {
             display: flex;
@@ -244,11 +255,11 @@ $conn->close();
             transition: all 0.3s ease;
         }
         .checkbox-container:hover .checkmark {
-            border-color: #011f4b;
+            border-color: #29cb3e;
         }
         .checkbox-container input:checked ~ .checkmark {
-            background-color: #011f4b;
-            border-color: #011f4b;
+            background-color: #29cb3e;
+            border-color: #29cb3e;
         }
         .checkmark:after {
             content: "";
@@ -305,9 +316,10 @@ $conn->close();
     </style>
 </head>
 <body>
+    <!-- Login form -->
     <div class="login-container">
         <div class="animation-container">
-            <img src="Login_gif.gif" alt="Admin Animation">
+            <img src="./img/GCLINIC.png" alt="Medical Clinic Notify+ Admin">
         </div>
         <div class="form-container">
             <div class="form-header">
@@ -323,7 +335,7 @@ $conn->close();
             <form method="POST" action="admin_login.php">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="Enter your email" value="<?php echo htmlspecialchars($rememberedEmail); ?>" required>
+                    <input type="email" id="email" name="email" placeholder="Enter your admin email" value="<?php echo htmlspecialchars($rememberedEmail); ?>" required>
                     <i class="bi bi-envelope right-icon"></i>
                 </div>
                 <div class="form-group">
@@ -334,40 +346,56 @@ $conn->close();
                     </span>
                 </div>
                 <div class="form-group remember-me">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label class="checkbox-container">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <label class="checkbox-container" style="margin-bottom: 0;">
                             <input type="checkbox" name="remember" id="remember" <?php echo !empty($rememberedEmail) ? 'checked' : ''; ?>>
                             <span class="checkmark"></span>
                             Remember me
                         </label>
-                        <a href="forgot_password.php" style="color: #011f4b; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.3s ease;">Forgot Password?</a>
+                        <a href="forgot_password.php" style="color: #011f4b; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; margin-left: 10px;">Forgot Password?</a>
                     </div>
                 </div>
                 <button type="submit" class="submit-btn">Login</button>
-                <div class="error-message" style="display:<?php echo !empty($error_message) ? 'block' : 'none'; ?>; background: #fbeaea; color: #c0392b; border: 1px solid #f5c6cb; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; margin-top: 12px;">
+                <div class="error-message" style="display:<?php echo !empty($error_message) ? 'block' : 'none'; ?>; background: #fbeaea; color: #c0392b; border: 1px solid #f5c6cb; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; margin-top: 12px; margin-bottom: 12px;">
                     <?php if (!empty($error_message)): ?>
                         <i class="bi bi-exclamation-triangle-fill" style="color:#c0392b; margin-right:7px; font-size:1.2em; vertical-align:middle;"></i>
                         <?php echo $error_message; ?>
                     <?php endif; ?>
                 </div>
             </form>
-            </div>
         </div>
     </div>
     <script>
+        // Toggle password visibility
         function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const toggleIcon = document.getElementById('toggleEye');
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.remove('bi-eye');
-                toggleIcon.classList.add('bi-eye-slash');
+            var passwordField = document.getElementById('password');
+            var eyeIcon = document.getElementById('toggleEye');
+
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                eyeIcon.classList.remove('bi-eye');
+                eyeIcon.classList.add('bi-eye-slash');
             } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.remove('bi-eye-slash');
-                toggleIcon.classList.add('bi-eye');
+                passwordField.type = 'password';
+                eyeIcon.classList.remove('bi-eye-slash');
+                eyeIcon.classList.add('bi-eye');
             }
         }
+
+        // Auto-dismiss alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                var errorMessage = document.querySelector('.error-message');
+                if (errorMessage && errorMessage.style.display === 'block') {
+                    errorMessage.style.opacity = '0';
+                    setTimeout(function() {
+                        errorMessage.style.display = 'none';
+                    }, 500);
+                }
+            }, 5000);
+        });
     </script>
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

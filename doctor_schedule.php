@@ -685,6 +685,14 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
             <i class="bi bi-graph-up"></i> <span>My Reports</span>
         </a></li>
     </ul>
+    
+    <!-- Add logout section at bottom of sidebar -->
+    <div class="sidebar-divider" style="margin-top: auto;"></div>
+    <ul class="sidebar-menu">
+        <li><a href="doctor_login.php" class="logout-link" onclick="return confirmLogout()">
+            <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+        </a></li>
+    </ul>
   </aside>
 
   <!-- Exact same header as doctor_profile.php -->

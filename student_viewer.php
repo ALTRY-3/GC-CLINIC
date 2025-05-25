@@ -840,7 +840,7 @@ $doctor_verify_stmt->close();
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
+  <!-- Updated sidebar with logout button -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
@@ -864,6 +864,14 @@ $doctor_verify_stmt->close();
         </a></li>
         <li><a href="doctor_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_report.php' ? 'active' : '' ?>">
             <i class="bi bi-graph-up"></i> <span>My Reports</span>
+        </a></li>
+    </ul>
+    
+    <!-- Add logout section at bottom of sidebar -->
+    <div class="sidebar-divider" style="margin-top: auto;"></div>
+    <ul class="sidebar-menu">
+        <li><a href="doctor_login.php" class="logout-link" onclick="return confirmLogout()">
+            <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
         </a></li>
     </ul>
 </aside>

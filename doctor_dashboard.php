@@ -878,13 +878,12 @@ $month_count = $month_result->fetch_assoc()['count'];
 </head>
 <body>
 
-<!-- Your existing sidebar with updated menu items -->
+<!-- Updated sidebar with logout button -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
     </div>
     <div class="sidebar-divider"></div>
-    <!-- Updated sidebar menu to match doctor_student.php -->
     <ul class="sidebar-menu">
         <li><a href="doctor_dashboard.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_dashboard.php' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
@@ -903,6 +902,14 @@ $month_count = $month_result->fetch_assoc()['count'];
         </a></li>
         <li><a href="doctor_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_report.php' ? 'active' : '' ?>">
             <i class="bi bi-graph-up"></i> <span>My Reports</span>
+        </a></li>
+    </ul>
+    
+    <!-- Add logout section at bottom of sidebar -->
+    <div class="sidebar-divider" style="margin-top: auto;"></div>
+    <ul class="sidebar-menu">
+        <li><a href="doctor_login.php" class="logout-link" onclick="return confirmLogout()">
+            <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
         </a></li>
     </ul>
 </aside>

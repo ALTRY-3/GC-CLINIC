@@ -1,0 +1,1212 @@
+<?php
+session_start();
+include 'config.php';
+
+// Check if admin is logged in
+if (!isset($_SESSION['adminID'])) {
+    header('location:admin_login.php');
+    exit;
+}
+
+$admin_id = $_SESSION['adminID'];
+
+// Fetch admin data
+$admin_query = "SELECT * FROM admins WHERE adminID = ? LIMIT 1";
+$admin_stmt = $conn->prepare($admin_query);
+$admin_stmt->bind_param("s", $admin_id);
+$admin_stmt->execute();
+$admin_result = $admin_stmt->get_result();
+$admin_data = $admin_result->fetch_assoc();
+$admin_stmt->close();
+
+// Fetch pending appointments
+$pending_query = "SELECT COUNT(*) as pending FROM appointments WHERE statusID = 1";
+$pending_result = $conn->query($pending_query);
+$pending_count = $pending_result->fetch_assoc()['pending'] ?? 0;
+
+// Fetch active doctors
+$doctors_query = "SELECT COUNT(*) as active FROM doctors WHERE Status = 'Active'";
+$doctors_result = $conn->query($doctors_query);
+$active_doctors = $doctors_result->fetch_assoc()['active'] ?? 0;
+
+// Fetch registered students
+$students_query = "SELECT COUNT(*) as registered FROM students";
+$students_result = $conn->query($students_query);
+$registered_students = $students_result->fetch_assoc()['registered'] ?? 0;
+
+// Fetch total appointments
+$appointments_query = "SELECT COUNT(*) as total FROM appointments";
+$appointments_result = $conn->query($appointments_query);
+$total_appointments = $appointments_result->fetch_assoc()['total'] ?? 0;
+
+// Fetch most recent appointments with proper error handling
+$recent_appt_query = "SELECT a.AppointmentID, a.AppointmentDate, a.Reason, s.firstName, s.lastName, 
+                      d.FirstName AS doctorFirstName, d.LastName AS doctorLastName, st.status_name as StatusName
+                      FROM appointments a 
+                      JOIN students s ON a.StudentID = s.studentID
+                      JOIN doctors d ON a.DoctorID = d.DoctorID
+                      JOIN status st ON a.statusID = st.statusID
+                      ORDER BY a.AppointmentDate DESC LIMIT 5";
+$recent_result = $conn->query($recent_appt_query);
+$recent_appts = [];
+
+if ($recent_result && $recent_result->num_rows > 0) {
+    while ($row = $recent_result->fetch_assoc()) {
+        $recent_appts[] = $row;
+    }
+}
+
+// Fetch appointment status stats
+$status_query = "SELECT st.status_name as StatusName, COUNT(*) as count 
+                FROM appointments a
+                JOIN status st ON a.statusID = st.statusID
+                GROUP BY a.statusID 
+                ORDER BY st.statusID";
+$status_result = $conn->query($status_query);
+$status_data = [];
+
+if ($status_result && $status_result->num_rows > 0) {
+    while ($row = $status_result->fetch_assoc()) {
+        $status_data[] = $row;
+    }
+}
+
+// Check if system_logs table exists
+$check_table_query = "SHOW TABLES LIKE 'system_logs'";
+$table_exists = $conn->query($check_table_query)->num_rows > 0;
+
+$notifications = [];
+
+if ($table_exists) {
+    // Fetch recent system notifications if table exists
+    $notif_query = "SELECT * FROM system_logs ORDER BY created_at DESC LIMIT 5";
+    $notif_result = $conn->query($notif_query);
+    
+    if ($notif_result && $notif_result->num_rows > 0) {
+        while ($row = $notif_result->fetch_assoc()) {
+            $notifications[] = $row;
+        }
+    }
+} else {
+    // Use dummy data if system_logs table doesn't exist
+    $notifications = [
+        [
+            'action' => 'Dashboard accessed',
+            'details' => 'Admin viewed dashboard',
+            'user_id' => $admin_id,
+            'created_at' => date('Y-m-d H:i:s')
+        ],
+        [
+            'action' => 'System initialized',
+            'details' => 'System setup complete',
+            'user_id' => 'System',
+            'created_at' => date('Y-m-d H:i:s', strtotime('-1 day'))
+        ],
+        [
+            'action' => 'New feature available',
+            'details' => 'Appointment management system updated',
+            'user_id' => 'System',
+            'created_at' => date('Y-m-d H:i:s', strtotime('-2 days'))
+        ]
+    ];
+}
+
+// Close the connection
+$conn->close();
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Medical Clinic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #60ad5e;
+            --primary-dark: #1b5e20;
+            --secondary: #1565c0;
+            --secondary-light: #5e92f3;
+            --secondary-dark: #003c8f;
+            --admin-primary: #2e7d32;
+            --admin-primary-light: #60ad5e;
+            --admin-primary-dark: #1b5e20;
+            --text-dark: #263238;
+            --text-medium: #546e7a;
+            --text-light: #78909c;
+            --surface-light: #f5f7fa;
+            --surface-medium: #e1e5eb;
+            --surface-dark: #cfd8dc;
+            --danger: #d32f2f;
+            --success: #388e3c;
+            --warning: #f57c00;
+            --shadow-sm: 0 2px 6px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+        
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--surface-light);
+            color: var(--text-dark);
+        }
+        
+        /* Layout */
+        .app-container {
+            display: grid;
+            min-height: 100vh;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas: 
+                "sidebar header"
+                "sidebar main";
+        }
+        
+        /* Header */
+        .header {
+            grid-area: header;
+            background: white;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 90;
+            transition: all 0.3s ease;
+        }
+        
+        .header-expanded {
+            margin-left: 260px;
+        }
+        
+        .header-title {
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: var(--admin-primary);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            color: var(--admin-primary);
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .toggle-sidebar:hover {
+            background: var(--surface-light);
+        }
+        
+        .welcome-message {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: var(--text-medium);
+        }
+        
+        .welcome-message i {
+            color: var(--admin-primary);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            grid-area: sidebar;
+            width: 260px;
+            background: var(--admin-primary);
+            transition: all 0.3s ease;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-collapsed {
+            transform: translateX(-260px);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-logo {
+            width: 70%;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-logo:hover {
+            transform: scale(1.05);
+        }
+        
+        .sidebar-divider {
+            border-bottom: 1px solid var(--admin-primary-light);
+            margin: 8px 20px;
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 14px 25px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .sidebar-menu a:hover {
+            background: var(--admin-primary-light);
+            padding-left: 30px;
+        }
+        
+        .sidebar-menu a.active {
+            background: var(--admin-primary-light);
+            border-right: 4px solid white;
+        }
+        
+        .sidebar-menu i {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        
+        .sidebar-menu a:hover i {
+            transform: translateX(3px);
+        }
+        
+        .sidebar-menu:last-child {
+            margin-top: auto;
+            padding-bottom: 20px;
+        }
+        
+        /* Logout button styling */
+        .logout-link {
+            color: #ffcdd2 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .logout-link:hover {
+            background: #d32f2f !important;
+            color: white !important;
+            padding-left: 22px !important;
+        }
+
+        .logout-link i {
+            color: #ffcdd2 !important;
+        }
+
+        .logout-link:hover i {
+            color: white !important;
+        }
+        
+        /* Main Content */
+        .main-content {
+            grid-area: main;
+            padding: 30px;
+            transition: all 0.3s ease;
+            background-color: var(--surface-light);
+        }
+        
+        .main-expanded {
+            margin-left: 260px;
+        }
+        
+        /* Dashboard Specific Styles */
+        .welcome-banner { 
+            background: linear-gradient(145deg, #ffffff 0%, #f9fbff 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(46, 125, 50, 0.08);
+            padding: 32px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(46, 125, 50, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .welcome-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(46, 125, 50, 0.03) 0%, rgba(255, 255, 255, 0) 60%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .welcome-banner .avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--admin-primary-light), var(--admin-primary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: white;
+            box-shadow: 0 8px 25px rgba(46, 125, 50, 0.25);
+            border: 4px solid white;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        
+        .welcome-banner .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .welcome-banner h2 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--admin-primary-dark), var(--admin-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-banner p {
+            margin: 8px 0 0;
+            color: var(--text-medium);
+            font-size: 1.1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Dashboard Stats */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--admin-primary-light), var(--admin-primary));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card:hover::after {
+            transform: scaleX(1);
+        }
+        
+        .stat-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            margin: 0 0 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .stat-card h3 i {
+            margin-right: 10px;
+            color: var(--admin-primary);
+            font-size: 1.5rem;
+        }
+        
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--admin-primary);
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .description {
+            color: var(--text-medium);
+            font-size: 0.9rem;
+        }
+        
+        /* Charts and Tables Container */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+        
+        /* Chart Card */
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+        
+        .chart-card:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--surface-medium);
+            display: flex;
+            align-items: center;
+        }
+        
+        .chart-card h3 i {
+            margin-right: 10px;
+            color: var(--admin-primary);
+            font-size: 1.2rem;
+        }
+        
+        /* Recent Appointments Table */
+        .recent-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .recent-table th {
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            border-bottom: 1px solid var(--surface-medium);
+        }
+        
+        .recent-table td {
+            padding: 12px 15px;
+            font-size: 0.95rem;
+            border-bottom: 1px solid var(--surface-light);
+        }
+        
+        .recent-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .recent-table tr:hover {
+            background-color: var(--surface-light);
+        }
+        
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .status-pending {
+            background-color: rgba(245, 124, 0, 0.1);
+            color: var(--warning);
+        }
+        
+        .status-approved {
+            background-color: rgba(21, 101, 192, 0.1);
+            color: var(--secondary);
+        }
+        
+        .status-completed {
+            background-color: rgba(56, 142, 60, 0.1);
+            color: var(--success);
+        }
+        
+        .status-cancelled {
+            background-color: rgba(211, 47, 47, 0.1);
+            color: var(--danger);
+        }
+        
+        /* Activity Log */
+        .activity-log {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+        
+        .activity-log:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .activity-log h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--surface-medium);
+            display: flex;
+            align-items: center;
+        }
+        
+        .activity-log h3 i {
+            margin-right: 10px;
+            color: var(--admin-primary);
+            font-size: 1.2rem;
+        }
+        
+        .activity-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .activity-item {
+            display: flex;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .activity-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 15px;
+            width: 1px;
+            height: calc(100% - 10px);
+            background-color: var(--surface-medium);
+        }
+        
+        .activity-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+            z-index: 2;
+        }
+        
+        .icon-info {
+            background-color: rgba(21, 101, 192, 0.1);
+            color: var(--secondary);
+        }
+        
+        .icon-success {
+            background-color: rgba(56, 142, 60, 0.1);
+            color: var(--success);
+        }
+        
+        .icon-warning {
+            background-color: rgba(245, 124, 0, 0.1);
+            color: var(--warning);
+        }
+        
+        .icon-error {
+            background-color: rgba(211, 47, 47, 0.1);
+            color: var(--danger);
+        }
+        
+        .activity-content {
+            flex-grow: 1;
+        }
+        
+        .activity-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+        
+        .activity-time {
+            font-size: 0.85rem;
+            color: var(--text-medium);
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+        
+        .quick-actions:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .quick-actions h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--surface-medium);
+            display: flex;
+            align-items: center;
+        }
+        
+        .quick-actions h3 i {
+            margin-right: 10px;
+            color: var(--admin-primary);
+            font-size: 1.2rem;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: var(--admin-primary);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 1200px) {
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-260px);
+            }
+            
+            .header, .main-content {
+                margin-left: 0 !important;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .welcome-banner {
+                padding: 24px;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .recent-table th:nth-child(4),
+            .recent-table td:nth-child(4) {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .main-content {
+                padding: 15px;
+            }
+            
+            .welcome-banner {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            
+            .welcome-banner .avatar {
+                width: 70px;
+                height: 70px;
+                font-size: 2rem;
+            }
+            
+            .welcome-banner h2 {
+                font-size: 1.6rem;
+            }
+            
+            .welcome-banner p {
+                font-size: 0.9rem;
+            }
+            
+            .activity-list {
+                padding-left: 0;
+            }
+            
+            .recent-table th:nth-child(3),
+            .recent-table td:nth-child(3) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
+            </div>
+            <div class="sidebar-divider"></div>
+            <ul class="sidebar-menu">
+                <li><a href="admin_dashboard.php" class="active">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a></li>
+                <li><a href="admin_profile.php">
+                    <i class="bi bi-person-circle"></i> My Profile
+                </a></li>
+                <li><a href="staff_management.php">
+                    <i class="bi bi-people-fill"></i> Staff Management
+                </a></li>
+                <li><a href="student_management.php">
+                    <i class="bi bi-person-vcard"></i> Student Management
+                </a></li>
+                <li><a href="appointment_management.php">
+                    <i class="bi bi-calendar-check"></i> Appointments
+                </a></li>
+                <li><a href="admin_report.php">
+                    <i class="bi bi-graph-up"></i> Reports
+                </a></li>
+                <li><a href="system_settings.php">
+                    <i class="bi bi-gear"></i> System Settings
+                </a></li>
+            </ul>
+            
+            <div class="sidebar-divider" style="margin-top: auto;"></div>
+            <ul class="sidebar-menu">
+                <li><a href="admin_login.php" class="logout-link" onclick="return confirmLogout()">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a></li>
+            </ul>
+        </aside>
+        
+        <!-- Header -->
+        <header class="header header-expanded" id="header">
+            <div class="d-flex align-items-center">
+                <button class="toggle-sidebar me-3" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="header-title">Admin Dashboard</h1>
+            </div>
+            
+            <div class="header-actions">
+                <div class="welcome-message">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Welcome, <?php echo htmlspecialchars($admin_data['adminName'] ?? 'Admin'); ?></span>
+                </div>
+                
+                <a href="admin_profile.php" class="btn btn-sm btn-outline-success me-2">
+                    <i class="bi bi-person-circle"></i> Profile
+                </a>
+                
+                <a href="admin_login.php" onclick="return confirmLogout()" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content main-expanded" id="mainContent">
+            <!-- Welcome Banner -->
+            <div class="welcome-banner">
+                <div class="avatar">
+                    <?php if (!empty($admin_data['profilePhoto']) && file_exists($admin_data['profilePhoto'])): ?>
+                        <img src="<?php echo htmlspecialchars($admin_data['profilePhoto']); ?>" alt="Admin Profile Photo">
+                    <?php else: ?>
+                        <i class="bi bi-person-gear"></i>
+                    <?php endif; ?>
+                </div>
+                <div class="welcome-text">
+                    <h2>Welcome, <?php echo htmlspecialchars($admin_data['adminName'] ?? ''); ?>!</h2>
+                    <p>Clinic System Administrator Dashboard</p>
+                    <small class="text-muted">
+                        Today's Date: <?php echo date('F d, Y'); ?>
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3><i class="bi bi-hourglass-split"></i> Pending Appointments</h3>
+                    <div class="number"><?php echo $pending_count; ?></div>
+                    <div class="description">Appointments awaiting confirmation</div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3><i class="bi bi-person-badge"></i> Active Doctors</h3>
+                    <div class="number"><?php echo $active_doctors; ?></div>
+                    <div class="description">Currently registered medical staff</div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3><i class="bi bi-people"></i> Registered Students</h3>
+                    <div class="number"><?php echo $registered_students; ?></div>
+                    <div class="description">Students in the system</div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3><i class="bi bi-calendar-check"></i> Total Appointments</h3>
+                    <div class="number"><?php echo $total_appointments; ?></div>
+                    <div class="description">Appointments recorded in the system</div>
+                </div>
+            </div>
+            
+            <!-- Charts Container -->
+            <div class="charts-container">
+                <!-- Appointments Chart -->
+                <div class="chart-card">
+                    <h3><i class="bi bi-bar-chart-fill"></i> Appointment Statistics</h3>
+                    <canvas id="appointmentChart" height="250"></canvas>
+                </div>
+                
+                <!-- Recent Appointments Table -->
+                <div class="chart-card">
+                    <h3><i class="bi bi-calendar2-week"></i> Recent Appointments</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="recent-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Student</th>
+                                    <th>Doctor</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (count($recent_appts) > 0): ?>
+                                    <?php foreach ($recent_appts as $appt): ?>
+                                        <?php
+                                        $statusClass = '';
+                                        $statusName = strtolower($appt['StatusName'] ?? '');
+                                        switch ($statusName) {
+                                            case 'pending':
+                                                $statusClass = 'status-pending';
+                                                break;
+                                            case 'approved':
+                                                $statusClass = 'status-confirmed';
+                                                break;
+                                            case 'completed':
+                                                $statusClass = 'status-completed';
+                                                break;
+                                            case 'cancelled':
+                                            case 'cancellation requested':
+                                                $statusClass = 'status-cancelled';
+                                                break;
+                                            default:
+                                                $statusClass = 'status-pending';
+                                        }
+                                        ?>
+                                        <tr>
+                                            <td><?php echo date('M d, Y', strtotime($appt['AppointmentDate'])); ?></td>
+                                            <td><?php echo htmlspecialchars(($appt['firstName'] ?? '') . ' ' . ($appt['lastName'] ?? '')); ?></td>
+                                            <td><?php echo htmlspecialchars(($appt['doctorFirstName'] ?? '') . ' ' . ($appt['doctorLastName'] ?? '')); ?></td>
+                                            <td><?php echo htmlspecialchars($appt['Reason'] ?? ''); ?></td>
+                                            <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($appt['StatusName'] ?? 'Unknown'); ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="5" style="text-align: center;">No recent appointments found</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Links & Activity Log -->
+            <div class="charts-container">
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h3><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
+                    <div class="action-buttons">
+                        <a href="appointment_management.php" class="action-btn btn-primary">
+                            <i class="bi bi-calendar-plus"></i> Manage Appointments
+                        </a>
+                        <a href="doctor_management.php" class="action-btn btn-secondary">
+                            <i class="bi bi-person-plus"></i> Add Doctor
+                        </a>
+                        <a href="admin_report.php" class="action-btn btn-success">
+                            <i class="bi bi-file-earmark-text"></i> Generate Reports
+                        </a>
+                        <a href="notifications.php" class="action-btn btn-warning">
+                            <i class="bi bi-bell"></i> Send Notifications
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Activity Log -->
+                <div class="activity-log">
+                    <h3><i class="bi bi-clock-history"></i> Recent System Activity</h3>
+                    <ul class="activity-list">
+                        <?php if (!empty($notifications)): ?>
+                            <?php foreach ($notifications as $notification): ?>
+                                <?php
+                                $iconClass = 'icon-info';
+                                $iconName = 'info-circle';
+                                
+                                // Determine icon based on activity type
+                                if (isset($notification['action'])) {
+                                    $action = strtolower($notification['action']);
+                                    if (strpos($action, 'add') !== false) {
+                                        $iconClass = 'icon-success';
+                                        $iconName = 'plus-circle';
+                                    } elseif (strpos($action, 'delete') !== false) {
+                                        $iconClass = 'icon-error';
+                                        $iconName = 'trash';
+                                    } elseif (strpos($action, 'update') !== false || strpos($action, 'edit') !== false) {
+                                        $iconClass = 'icon-warning';
+                                        $iconName = 'pencil-square';
+                                    }
+                                }
+                                ?>
+                                <li class="activity-item">
+                                    <div class="activity-icon <?php echo $iconClass; ?>">
+                                        <i class="bi bi-<?php echo $iconName; ?>"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">
+                                            <?php echo htmlspecialchars($notification['action'] ?? 'System Activity'); ?>
+                                        </div>
+                                        <div class="activity-time">
+                                            <?php 
+                                            if (isset($notification['created_at'])) {
+                                                echo date('M d, Y h:i A', strtotime($notification['created_at']));
+                                            }
+                                            ?>
+                                        </div>
+                                    </div>
+                                </li>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <li class="activity-item">
+                                <div class="activity-icon icon-info">
+                                    <i class="bi bi-info-circle"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">No recent system activities</div>
+                                    <div class="activity-time">-</div>
+                                </div>
+                            </li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const sidebar = document.getElementById('sidebar');
+            const header = document.getElementById('header');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            // Toggle Sidebar
+            function toggleSidebar() {
+                const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                
+                if (isSidebarCollapsed) {
+                    sidebar.classList.remove('sidebar-collapsed');
+                    header.classList.add('header-expanded');
+                    mainContent.classList.add('main-expanded');
+                } else {
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
+                }
+            }
+            
+            // Set initial state based on screen size
+            function setInitialState() {
+                if (window.innerWidth <= 992) {
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
+                }
+            }
+            
+            // Toggle sidebar event
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth <= 992) {
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
+                }
+            });
+            
+            // Confirmation dialog for logout
+            window.confirmLogout = function() {
+                return confirm('Are you sure you want to logout?');
+            };
+            
+            // Initialize the appointment chart
+            const appointmentChartCtx = document.getElementById('appointmentChart').getContext('2d');
+            
+            // Extract data from PHP or use default values if there's no data
+            let statusLabels = <?= !empty($status_data) ? json_encode(array_column($status_data, 'StatusName')) : '["Pending", "Approved", "Completed", "Cancelled"]' ?>;
+            let statusCounts = <?= !empty($status_data) ? json_encode(array_column($status_data, 'count')) : '[0, 0, 0, 0]' ?>;
+            
+            // Colors for chart
+            const chartColors = [
+                'rgba(245, 124, 0, 0.7)',  // Orange for Pending
+                'rgba(21, 101, 192, 0.7)', // Blue for Approved
+                'rgba(56, 142, 60, 0.7)',  // Green for Completed
+                'rgba(211, 47, 47, 0.7)',  // Red for Cancelled
+            ];
+            
+            // Create chart
+            const appointmentChart = new Chart(appointmentChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        label: 'Number of Appointments',
+                        data: statusCounts,
+                        backgroundColor: chartColors,
+                        borderColor: chartColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Set initial state
+            setInitialState();
+        });
+    </script>
+</body>
+</html>
