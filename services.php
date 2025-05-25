@@ -501,7 +501,7 @@ $notifications = $notificationStmt->get_result();
                 <button class="toggle-sidebar me-3" id="sidebarToggle">
                     <i class="bi bi-list"></i>
                 </button>
-                <h1 class="header-title">Medical Clinic Notify+</h1>
+                <h1 class="header-title"></h1>
             </div>
             
             <div class="header-actions">

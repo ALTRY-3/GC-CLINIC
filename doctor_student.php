@@ -53,9 +53,10 @@ error_log("Debug - Cancellation requests count: " . $cancellationCount);
 // Modify the main query to properly handle status filtering
 $query = "
     SELECT 
-        students.studentID as StudentID,
-        students.name as FirstName,
-        students.contactNumber as ContactNumber,
+        students.StudentID,
+        students.FirstName,
+        students.LastName,
+        students.ContactNumber,
         appointments.AppointmentID,
         appointments.StatusID,
         appointments.AppointmentDate,
@@ -76,7 +77,7 @@ $query = "
         ts.StartTime,
         ts.EndTime
     FROM students
-    INNER JOIN appointments ON students.studentID = appointments.StudentID
+    INNER JOIN appointments ON students.StudentID = appointments.StudentID
     LEFT JOIN status s ON appointments.StatusID = s.statusID
     LEFT JOIN doctors d ON appointments.DoctorID = d.DoctorID
     LEFT JOIN timeslots ts ON appointments.SlotID = ts.SlotID";
@@ -126,22 +127,10 @@ if (!empty($params)) {
 }
 
 $stmt = $conn->prepare($query);
-if ($stmt === false) {
-    error_log("Query preparation failed: " . $conn->error);
-    die("Error preparing statement: " . $conn->error);
-}
-
 if (!empty($params)) {
-    if (!$stmt->bind_param($types, ...$params)) {
-        error_log("Parameter binding failed: " . $stmt->error);
-        die("Error binding parameters: " . $stmt->error);
-    }
+    $stmt->bind_param($types, ...$params);
 }
-
-if (!$stmt->execute()) {
-    error_log("Query execution failed: " . $stmt->error);
-    die("Error executing statement: " . $stmt->error);
-}
+$stmt->execute();
 $result = $stmt->get_result();
 
 // Debug log the number of results
@@ -516,407 +505,318 @@ $currentPage = basename($_SERVER['PHP_SELF']);
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
+    /* Add these CSS variables first */
+    :root {
+        --primary: #2e7d32;
+        --primary-light: #60ad5e;
+        --primary-dark: #1b5e20;
+        --text-dark: #263238;
+        --text-medium: #546e7a;
+        --text-light: #78909c;
+        --surface-light: #f5f7fa;
+        --surface-medium: #e1e5eb;
+        --surface-dark: #cfd8dc;
+        --shadow-sm: 0 2px 6px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+        --radius-lg: 20px;
+    }
+    
     body {
-      margin: 0;
-      font-family: 'Poppins', sans-serif;
-      overflow-x: hidden;
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--surface-light);
+        color: var(--text-dark);
+        overflow-x: hidden;
     }
+    
+    /* Ensure these styles match doctor_dashboard.php exactly */
     .sidebar {
-      width: 240px;
-      height: 100vh;
-      position: fixed;
-      background-color: #2e7d32 !important;
-      color: white;
-      padding-top: 20px;
-      box-shadow: 2px 0 12px rgba(46, 125, 50, 0.3);
-      transition: transform 0.3s ease;
-      z-index: 2000;
-      overflow-y: auto;
-      left: 0;
-      top: 0;
-      display: block;
-    }
-    .sidebar-divider {
-      border-bottom: 1.5px solid #60ad5e;
-      margin: 18px 0 12px 0;
-    }
-    .sidebar.collapsed {
-      transform: translateX(-240px);
-      background-color: #2e7d32 !important;
-    }
-    .toggle-btn {
-      position: fixed;
-      left: 240px;
-      top: 24px;
-      background-color: #fff;
-      color: #2e7d32;
-      border: none;
-      width: 40px;
-      height: 40px;
-      padding: 0;
-      border-radius: 50%;
-      box-shadow: 0 2px 8px rgba(46, 125, 50, 0.3);
-      cursor: pointer;
-      z-index: 2100;
-      transition: left 0.3s, background 0.2s, color 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .toggle-btn:hover {
-      background: #dcedc8;
-      color: #2e7d32;
-    }
-    .toggle-btn.collapsed {
-      left: 16px;
-    }
-    .toggle-btn i {
-      font-size: 20px;
-      font-weight: bold;
-      transition: transform 0.3s, color 0.2s;
-    }
-    .toggle-btn.collapsed i {
-      transform: rotate(-90deg) scale(1.1);
-      color: #2e7d32;
-    }
-    .toggle-btn.expanded i {
-      transform: rotate(0deg) scale(1.1);
-      color: #2e7d32;
-    }
-    .sidebar img {
-      width: 80%;
-      height: auto;
-      margin: 0 auto 10px;
-      display: block;
-    }
-    .sidebar a {
-      display: flex;
-      align-items: center;
-      color: #fff;
-      text-decoration: none;
-      padding: 16px 24px;
-      width: 100%;
-      transition: background-color 0.2s, color 0.2s;
-      font-size: 1.08rem;
-      font-weight: 500;
-    }
-    .sidebar a i {
-      margin-right: 14px;
-      font-size: 1.25rem;
-    }
-    .sidebar a:hover,
-    .sidebar a.active {
-      background-color: #60ad5e;
-      color: #fff;
-      border-right: 6px solid #388e3c;
-    }
-    .sidebar-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: rgba(0,0,0,0.5);
-      z-index: 1500;
-      display: none;
-      transition: opacity 0.3s ease;
-    }
-    .sidebar-overlay.active {
-      display: block;
-    }
-    .top-bar {
-      width: calc(100% - 240px);
-      height: 60px;
-      background-color: #2e7d32;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      padding: 0 28px;
-      font-size: 22px;
-      font-weight: 600;
-      margin-left: 240px;
-      justify-content: space-between;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 10px rgba(46, 125, 50, 0.1);
-      border-bottom: 2px solid #60ad5e;
-      letter-spacing: 0.5px;
-    }
-    .main-content {
-      margin-left: 240px;
-      padding: 20px;
-      padding-top: 70px;
-      transition: all 0.3s ease;
-    }
-    h1,
-    h2 {
-      color: #2e7d32;
-      margin-bottom: 1.5rem;
-    }
-    h1 {
-      font-size: 2rem;
-      font-weight: 600;
-    }
-    .report-container {
-      max-width: 1200px;
-      margin: 20px auto;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(46, 125, 50, 0.1);
-    }
-
-            .table {
-            width: 100%;
-            border-collapse: collapse;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 20px rgba(1, 31, 75, 0.1);
-            margin-bottom: 2rem;
-        }
-
-        .table th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            background: #f9f87a;
-            color: #011f4b;
-            padding: 18px 16px;
-            font-weight: 700;
-            font-size: 1.05rem;
-            border-bottom: 2px solid #eaf6fb;
-            letter-spacing: 0.5px;
-        }
-
-        .table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            vertical-align: middle;
-        }
-
-        .table tbody tr:hover {
-            background-color: rgba(37, 129, 196, 0.1);
-        }
-
-        .btn-sm {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-        }
-
-        .form-control-sm {
-            font-size: 0.85rem;
-            padding: 0.4rem 0.8rem;
-        }
-
-        .input-group {
-            max-width: 500px;
-        }
-
-        /* Modal Styles */
-        .modal-dialog {
-            max-width: 90%;
-            width: 90%;
-            margin: 1.75rem auto;
-        }
-
-        .modal-content {
-            max-height: 90vh;
-            overflow-y: auto;
-            background-color: #fff;
-            border-radius: 10px;
-        }
-
-        .file-preview {
-            width: 100%;
-            height: 70vh;
-            min-height: 300px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #f8f9fa;
-            padding: 20px;
-        }
-
-        .file-preview iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background-color: #fff;
-        }
-
-        .file-preview img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        .modal-header {
-            background-color: #011f4b;
-            color: white;
-            border-bottom: none;
-        }
-
-        .modal-header .btn-close {
-            filter: invert(1) grayscale(100%) brightness(200%);
-        }
-
-        .modal-footer {
-            background-color: #f8f9fa;
-            border-top: none;
-        }
-    @media (max-width: 992px) {
-      .sidebar {
-        background-color: 0 0 20px rgba(46, 125, 50, 0.1) !important;
-        left: 0;
+        grid-area: sidebar;
+        width: 250px;
+        background: var(--primary);
+        transition: all 0.3s ease;
+        position: fixed;
+        height: 100vh;
+        z-index: 100;
+        box-shadow: var(--shadow-md);
         top: 0;
-        display: block;
-        z-index: 2000;
-      }
-      .top-bar {
-        margin-left: 0;
-        width: 100%;
-        font-size: 18px;
-        padding: 0 15px;
-      }
-      .main-content {
-        margin-left: 0;
-        padding: 15px;
-      }
-      .report-container {
-        margin: 15px auto;
-        padding: 15px;
-      }
+        left: 0;
     }
-    @media (max-width: 768px) {
-      .top-bar {
-        font-size: 16px;
-        height: 50px;
-      }
-      h1 {
-        font-size: 1.8rem;
-      }
-                  h2 {
-                font-size: 1.5rem;
-            }
-            .table th, .table td {
-                padding: 10px;
-                font-size: 0.9rem;
-            }
-            .btn-sm {
-                padding: 0.3rem 0.6rem;
-                font-size: 0.8rem;
-            }
-            .file-preview {
-                min-height: 250px;
-            }
-            .table-responsive {
-                overflow-x: auto;
-            }
-            .table thead {
-                display: none;
-            }
-            .table, .table tbody, .table tr, .table td {
-                display: block;
-                width: 100%;
-            }
-            .table tr {
-                margin-bottom: 1rem;
-                border-bottom: 2px solid #eee;
-            }
-            .table td {
-                text-align: right;
-                padding-left: 50%;
-                position: relative;
-            }
-            .table td::before {
-                content: attr(data-label);
-                position: absolute;
-                left: 0;
-                width: 50%;
-                padding-left: 1rem;
-                font-weight: bold;
-                text-align: left;
-                color: #333;
-            }
+    
+    .sidebar-collapsed {
+        transform: translateX(-250px);
     }
-    @media (max-width: 576px) {
-      .top-bar {
-        font-size: 14px;
-        padding: 0 10px;
-      }
-      .main-content {
-        padding: 10px;
-      }
-      h1 {
+    
+    .sidebar-header {
+        padding: 20px;
+        text-align: center;
+    }
+
+    .sidebar-logo {
+        width: 70%;
+        max-width: 140px;
+        transition: transform 0.3s;
+    }
+
+    .sidebar-logo:hover {
+        transform: scale(1.05);
+    }
+
+    .sidebar-divider {
+        border-bottom: 1px solid var(--primary-light);
+        margin: 8px 20px;
+    }
+
+    .sidebar-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .sidebar-menu a {
+        display: flex;
+        align-items: center;
+        padding: 14px 18px;
+        color: white;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        font-size: 1rem;
+        line-height: 1.3;
+    }
+    
+    .sidebar-menu a:hover {
+        background: var(--primary-light);
+        padding-left: 22px;
+    }
+    
+    .sidebar-menu a.active {
+        background: var(--primary-light);
+        border-right: 4px solid white;
+    }
+    
+    .sidebar-menu i {
+        margin-right: 12px;
+        font-size: 1.25rem;
+        min-width: 24px;
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .sidebar-menu a:hover i {
+        transform: translateX(3px);
+    }
+    
+    /* Header styles */
+    .header {
+        background: white;
+        padding: 15px 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: var(--shadow-sm);
+        position: sticky;
+        top: 0;
+        z-index: 90;
+        transition: all 0.3s ease;
+        margin-left: 0; /* Start with no margin like doctor_dashboard */
+    }
+    
+    .header-expanded {
+        margin-left: 250px;
+    }
+    
+    .header-title {
+        font-weight: 600;
+        font-size: 1.4rem;
+        color: var(--primary);
+    }
+    
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    /* Toggle sidebar button */
+    .toggle-sidebar {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        position: relative;
+        z-index: 91;
+    }
+    
+    .toggle-sidebar:active {
+        transform: scale(0.95);
+    }
+
+    .toggle-sidebar i {
         font-size: 1.5rem;
-        margin-bottom: 1rem;
-      }
-                  h2 {
-                font-size: 1.3rem;
-                margin-bottom: 1rem;
-            }
-            .table th, .table td {
-                padding: 8px;
-                font-size: 0.85rem;
-            }
-            .sidebar a {
-                padding: 12px 15px;
-                font-size: 0.9rem;
-            }
-            .sidebar img {
-                width: 70%;
-            }
-            .btn-sm {
-                width: 100%;
-                margin-bottom: 0.3rem;
-            }
-            .form-control-sm {
-                margin-bottom: 0.5rem;
-            }
-            .file-preview {
-                min-height: 200px;
-            }
+    }
+    
+    /* Main content */
+    .main-content {
+        margin-left: 0; /* Start with no margin like doctor_dashboard */
+        padding: 20px;
+        transition: all 0.3s ease;
+        background-color: var(--surface-light);
+    }
+    
+    .main-expanded {
+        margin-left: 250px;
+    }
+    
+    /* Sidebar overlay */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 99;
+        display: none;
+    }
+    
+    /* Keep your existing responsive styles but update these */
+    @media (max-width: 1200px) {
+        .main-content {
+            padding: 18px;
+        }
+    }
+
+    @media (max-width: 992px) {
+        .main-content {
+            padding: 15px;
+        }
+        
+        .sidebar {
+            transform: translateX(-250px);
+        }
+        
+        .header, .main-content {
+            margin-left: 0 !important;
+        }
+        
+        .toggle-sidebar {
+            display: flex;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .header-title {
+            font-size: 1.3rem;
+        }
+        
+        .main-content {
+            padding: 15px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .header {
+            padding: 15px;
+        }
+        
+        .header-title {
+            font-size: 1.2rem;
+        }
+        
+        .main-content {
+            padding: 15px;
+        }
+    }
+    
+    /* Very small device optimizations */
+    @media (max-width: 360px) {
+        .header {
+            padding: 10px;
+        }
+        
+        .header-title {
+            font-size: 1.1rem;
+        }
+    }
+
+    /* Better touch interactions for mobile */
+    @media (hover: none) {
+        .sidebar-menu a:hover {
+            background: var(--primary);
+            padding-left: 18px;
+        }
+        
+        .sidebar-menu a:active {
+            background: var(--primary-light);
+        }
     }
   </style>
 </head>
 
 <body>
   <!-- Sidebar -->
-<div class="sidebar" id="sidebar">
-  <img src="MedicalClinicLogo.png" alt="Logo" />
-  <a href="doctor_dashboard.php" class="<?= $current_page === 'doctor_dashboard.php' ? 'active' : '' ?>">
-    <i class="bi bi-speedometer2"></i> Dashboard Overview
-  </a>
-  <a href="doctor_student.php" class="<?= $current_page === 'doctor_student.php' ? 'active' : '' ?>">
-    <i class="bi bi-calendar-check"></i> Appointment Management
-  </a>
-    <a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
-    <i class="bi bi-person-lines-fill"></i> Patient Records Viewer
-  </a>
-    <a href="doctor_notes.php" class="<?= $current_page === 'doctor_notes.php' ? 'active' : '' ?>">
-    <i class="bi bi-journal-text"></i> Patient Notes
-  </a>
-  <a href="doctor_profile.php" class="<?= $current_page === 'doctor_profile.php' ? 'active' : '' ?>">
-    <i class="bi bi-person-circle"></i> Doctor Profile
-  </a>
-  <a href="doctor_schedule.php" class="<?= $current_page === 'doctor_schedule.php' ? 'active' : '' ?>">
-    <i class="bi bi-calendar3"></i> Schedule Configuration
-  </a>
-  <a href="doctor_report.php" class="<?= $current_page === 'doctor_report.php' ? 'active' : '' ?>">
-    <i class="bi bi-graph-up"></i> Reports & Analytics
-  </a>
-</div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
+    </div>
+    <div class="sidebar-divider"></div>
+    <!-- Updated sidebar menu structure with spans for better text control -->
+    <ul class="sidebar-menu">
+        <li><a href="doctor_dashboard.php" class="<?= $currentPage === 'doctor_dashboard.php' ? 'active' : '' ?>">
+            <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+        </a></li>
+        <li><a href="doctor_student.php" class="<?= $currentPage === 'doctor_student.php' ? 'active' : '' ?>">
+            <i class="bi bi-calendar-check"></i> <span>Appointments</span>
+        </a></li>
+        <li><a href="student_viewer.php" class="<?= $currentPage === 'student_viewer.php' ? 'active' : '' ?>">
+            <i class="bi bi-person-lines-fill"></i> <span>Patient Records</span>
+        </a></li>
+        <li><a href="doctor_notes.php" class="<?= $currentPage === 'doctor_notes.php' ? 'active' : '' ?>">
+            <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
+        </a></li>
+        <li><a href="doctor_profile.php" class="<?= $currentPage === 'doctor_profile.php' ? 'active' : '' ?>">
+            <i class="bi bi-person-circle"></i> <span>Profile</span>
+        </a></li>
+        <li><a href="doctor_schedule.php" class="<?= $currentPage === 'doctor_schedule.php' ? 'active' : '' ?>">
+            <i class="bi bi-calendar3"></i> <span>Schedule</span>
+        </a></li>
+        <li><a href="doctor_report.php" class="<?= $currentPage === 'doctor_report.php' ? 'active' : '' ?>">
+            <i class="bi bi-graph-up"></i> <span>Reports</span>
+        </a></li>
+    </ul>
+</aside>
 
-  <!-- Sidebar toggle button -->
-  <button id="sidebarToggle" class="toggle-btn" aria-label="Toggle sidebar">
-    <i class="bi bi-chevron-double-left"></i>
-  </button>
+<!-- Header -->
+<header class="header header-expanded" id="header">
+    <div class="d-flex align-items-center">
+        <button class="toggle-sidebar me-3" id="sidebarToggle">
+            <i class="bi bi-list"></i>
+        </button>
+        <h1 class="header-title">Medical Clinic Notify+</h1>
+    </div>
+    
+    <div class="header-actions">
+        <button onclick="printDashboard()" class="btn btn-sm btn-light no-print ms-2">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+</header>
 
-    <!-- Top bar -->
-  <div class="top-bar">
-    Medical Clinic Notify+ - Student Management
-  </div>
-  <!-- Sidebar overlay -->
-  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+<!-- Sidebar overlay -->
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-    <div class="main-content">
+    <main class="main-content main-expanded" id="mainContent">
         <div class="row g-3 mb-4">
             <?php
             // Calculate stats
@@ -1151,61 +1051,75 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 
         <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            <?php if ($result->num_rows > 0): ?>
-                <?php $result->data_seek(0); while ($row = $result->fetch_assoc()): ?>
-                    var fileInput<?php echo $row['AppointmentID']; ?> = document.getElementById('fileInput<?php echo $row['AppointmentID']; ?>');
-                    var fileName<?php echo $row['AppointmentID']; ?> = document.getElementById('fileName<?php echo $row['AppointmentID']; ?>');
-                    if (fileInput<?php echo $row['AppointmentID']; ?>) {
-                        fileInput<?php echo $row['AppointmentID']; ?>.addEventListener('change', function() {
-                            if (this.files && this.files.length > 0) {
-                                fileName<?php echo $row['AppointmentID']; ?>.textContent = this.files[0].name;
-                                fileName<?php echo $row['AppointmentID']; ?>.classList.remove('d-none');
-                            } else {
-                                fileName<?php echo $row['AppointmentID']; ?>.textContent = '';
-                                fileName<?php echo $row['AppointmentID']; ?>.classList.add('d-none');
-                            }
-                        });
-                    }
-                <?php endwhile; ?>
-            <?php endif; ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const sidebar = document.getElementById('sidebar');
+        const header = document.getElementById('header');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        // Toggle Sidebar
+        function toggleSidebar() {
+            const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
+            
+            if (isSidebarCollapsed) {
+                sidebar.classList.remove('sidebar-collapsed');
+                header.classList.add('header-expanded');
+                mainContent.classList.add('main-expanded');
+                sidebarOverlay.style.display = 'none';
+            } else {
+                sidebar.classList.add('sidebar-collapsed');
+                header.classList.remove('header-expanded');
+                mainContent.classList.remove('main-expanded');
+                
+                if (window.innerWidth <= 992) {
+                    sidebarOverlay.style.display = 'block';
+                }
+            }
+        }
+        
+        // Set initial state based on screen size
+        function setInitialState() {
+            if (window.innerWidth <= 992) {
+                sidebar.classList.add('sidebar-collapsed');
+                header.classList.remove('header-expanded');
+                mainContent.classList.remove('main-expanded');
+            } else {
+                // Ensure expanded classes are applied on larger screens
+                sidebar.classList.remove('sidebar-collapsed');
+                header.classList.add('header-expanded');
+                mainContent.classList.add('main-expanded');
+            }
+        }
+        
+        // Toggle sidebar event
+        sidebarToggle.addEventListener('click', toggleSidebar);
+        
+        // Handle overlay click
+        sidebarOverlay.addEventListener('click', function() {
+            if (!sidebar.classList.contains('sidebar-collapsed')) {
+                toggleSidebar();
+            }
         });
-
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    const overlay = document.getElementById('sidebarOverlay');
-    const mainContent = document.querySelector('.main-content');
-    const topBar = document.querySelector('.top-bar');
-
-    function toggleSidebar() {
-      sidebar.classList.toggle('collapsed');
-      toggleBtn.classList.toggle('collapsed');
-      overlay.classList.toggle('active');
-
-      if(sidebar.classList.contains('collapsed')){
-        toggleBtn.setAttribute('aria-label', 'Expand sidebar');
-        mainContent.style.marginLeft = '0';
-        topBar.style.marginLeft = '0';
-        topBar.style.width = '100%';
-      } else {
-        toggleBtn.setAttribute('aria-label', 'Collapse sidebar');
-        mainContent.style.marginLeft = '240px';
-        topBar.style.marginLeft = '240px';
-        topBar.style.width = 'calc(100% - 240px)';
-      }
-    }
-
-    toggleBtn.addEventListener('click', toggleSidebar);
-
-    overlay.addEventListener('click', () => {
-      sidebar.classList.add('collapsed');
-      toggleBtn.classList.add('collapsed');
-      overlay.classList.remove('active');
-      mainContent.style.marginLeft = '0';
-      topBar.style.marginLeft = '0';
-      topBar.style.width = '100%';
-      toggleBtn.setAttribute('aria-label', 'Expand sidebar');
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth <= 992) {
+                sidebar.classList.add('sidebar-collapsed');
+                header.classList.remove('header-expanded');
+                mainContent.classList.remove('main-expanded');
+            }
+        });
+        
+        // Print function
+        window.printDashboard = function() {
+            window.print();
+        }
+        
+        // Set initial state
+        setInitialState();
     });
-  </script>
+</script>
 </body>
 </html>
