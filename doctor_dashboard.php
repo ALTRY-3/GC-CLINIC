@@ -482,6 +482,8 @@ $month_count = $month_result->fetch_assoc()['count'];
         color: white;
         box-shadow: 0 8px 25px rgba(46, 125, 50, 0.25);
         border: 4px solid white;
+        overflow: hidden; /* Ensures photo stays within circle */
+        position: relative;
     }
 
     .welcome-banner h2 {
@@ -814,6 +816,64 @@ $month_count = $month_result->fetch_assoc()['count'];
             color: var(--text-dark);
         }
     }
+
+    /* Doctor photo styling */
+    .doctor-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 4px solid white;
+        box-shadow: 0 8px 25px rgba(46, 125, 50, 0.25);
+    }
+
+    /* Enhanced avatar container for photos */
+    .welcome-banner .avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: white;
+        box-shadow: 0 8px 25px rgba(46, 125, 50, 0.25);
+        border: 4px solid white;
+        overflow: hidden; /* Ensures photo stays within circle */
+        position: relative;
+    }
+
+    /* Fallback icon styling when no photo */
+    .welcome-banner .avatar i {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    /* Responsive photo sizing */
+    @media (max-width: 768px) {
+        .welcome-banner .avatar {
+            width: clamp(60px, 10vw, 80px);
+            height: clamp(60px, 10vw, 80px);
+        }
+        
+        .doctor-photo {
+            border: 3px solid white;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .welcome-banner .avatar {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .doctor-photo {
+            border: 2px solid white;
+        }
+    }
   </style>
 </head>
 <body>
@@ -834,9 +894,6 @@ $month_count = $month_result->fetch_assoc()['count'];
         </a></li>
         <li><a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
             <i class="bi bi-person-lines-fill"></i> <span>My Patients</span>
-        </a></li>
-        <li><a href="doctor_notes.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_notes.php' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
         </a></li>
         <li><a href="doctor_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_profile.php' ? 'active' : '' ?>">
             <i class="bi bi-person-circle"></i> <span>My Profile</span>
@@ -880,10 +937,17 @@ $month_count = $month_result->fetch_assoc()['count'];
 
 <!-- Updated main content with personalized welcome -->
 <main class="main-content main-expanded" id="mainContent">
-    <!-- Personalized welcome header -->
+    <!-- Personalized welcome header with actual doctor photo -->
     <div class="welcome-banner">
         <div class="avatar">
-            <i class="bi bi-person-circle"></i>
+            <?php if (!empty($doctorInfo['ProfilePhoto']) && file_exists($doctorInfo['ProfilePhoto'])): ?>
+                <img src="<?= htmlspecialchars($doctorInfo['ProfilePhoto']) ?>" 
+                     alt="Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?>" 
+                     class="doctor-photo">
+            <?php else: ?>
+                <!-- Fallback to icon if no photo -->
+                <i class="bi bi-person-circle"></i>
+            <?php endif; ?>
         </div>
         <div class="welcome-text">
             <h2>Welcome, Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?></h2>

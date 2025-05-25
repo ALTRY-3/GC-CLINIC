@@ -1,15 +1,45 @@
 <?php
+session_start();
 include 'config.php';
+
+// Check if doctor is logged in
+if (!isset($_SESSION['doctor_id'])) {
+    header("Location: doctor_login.php");
+    exit();
+}
+
+// Get the logged-in doctor's unique ID
+$doctorID = $_SESSION['doctor_id'];
+
+// Verify doctor exists and get their information
+$doctor_verify_sql = "SELECT * FROM doctors WHERE DoctorID = ? AND Status = 'Active'";
+$doctor_verify_stmt = $conn->prepare($doctor_verify_sql);
+$doctor_verify_stmt->bind_param("s", $doctorID);
+$doctor_verify_stmt->execute();
+$doctor_verify_result = $doctor_verify_stmt->get_result();
+
+if ($doctor_verify_result->num_rows === 0) {
+    session_destroy();
+    header("Location: doctor_login.php?error=invalid_session");
+    exit();
+}
+
+$doctorInfo = $doctor_verify_result->fetch_assoc();
 
 $searchTerm = $_GET['search'] ?? '';
 $studentID = $_GET['studentID'] ?? '';
 
-// Get student list for search dropdown - Updated to match your database structure
-$studentSql = "SELECT studentID, CONCAT(firstName, ' ', lastName) AS student_name 
-               FROM students 
-               ORDER BY lastName, firstName";
+// Get student list for search dropdown - ONLY students who have appointments with THIS doctor
+$studentSql = "SELECT DISTINCT s.studentID, CONCAT(s.firstName, ' ', s.lastName) AS student_name 
+               FROM students s
+               INNER JOIN appointments a ON s.studentID = a.StudentID
+               WHERE a.DoctorID = ?
+               ORDER BY s.lastName, s.firstName";
 
-$studentResult = $conn->query($studentSql);
+$studentStmt = $conn->prepare($studentSql);
+$studentStmt->bind_param("s", $doctorID);
+$studentStmt->execute();
+$studentResult = $studentStmt->get_result();
 
 // Check if query was successful
 if (!$studentResult) {
@@ -20,27 +50,44 @@ $students = [];
 while ($row = $studentResult->fetch_assoc()) {
     $students[] = $row;
 }
+$studentStmt->close();
 
-// Get specific student's appointment history
+// Get specific student's appointment history - ONLY with THIS doctor
 $appointmentHistory = [];
 if (!empty($studentID)) {
+    // First verify this student has appointments with the logged-in doctor
+    $verify_sql = "SELECT COUNT(*) as count FROM appointments WHERE StudentID = ? AND DoctorID = ?";
+    $verify_stmt = $conn->prepare($verify_sql);
+    $verify_stmt->bind_param("is", $studentID, $doctorID);
+    $verify_stmt->execute();
+    $verify_result = $verify_stmt->get_result();
+    $verify_count = $verify_result->fetch_assoc()['count'];
+    $verify_stmt->close();
+    
+    if ($verify_count === 0) {
+        // Redirect if trying to access unauthorized patient
+        header("Location: student_viewer.php?error=unauthorized");
+        exit();
+    }
+    
+    // Get appointment history - ONLY appointments with THIS doctor
     $sql = "SELECT a.AppointmentID, a.AppointmentDate, a.Reason, a.notes,
-                   t.StartTime, t.EndTime,
+                   ts.StartTime, ts.EndTime,
                    s.status_name AS status_name,
                    CONCAT(d.FirstName, ' ', d.LastName) as doctor_name
             FROM appointments a
-            JOIN timeslots t ON a.SlotID = t.SlotID
-            JOIN status s ON a.statusID = s.statusID
-            LEFT JOIN doctors d ON t.DoctorID = d.DoctorID
-            WHERE a.StudentID = ?
-            ORDER BY a.AppointmentDate DESC, t.StartTime DESC";
+            LEFT JOIN timeslots ts ON a.SlotID = ts.SlotID
+            LEFT JOIN status s ON a.statusID = s.statusID
+            LEFT JOIN doctors d ON a.DoctorID = d.DoctorID
+            WHERE a.StudentID = ? AND a.DoctorID = ?
+            ORDER BY a.AppointmentDate DESC";
     
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         die("Prepare failed: " . $conn->error);
     }
     
-    $stmt->bind_param("i", $studentID);
+    $stmt->bind_param("is", $studentID, $doctorID);
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -51,12 +98,16 @@ if (!empty($studentID)) {
     while ($row = $result->fetch_assoc()) {
         // Format time and date
         $row['formatted_date'] = date("F d, Y", strtotime($row['AppointmentDate']));
-        $row['time'] = date("h:i A", strtotime($row['StartTime'])) . ' - ' . date("h:i A", strtotime($row['EndTime']));
+        if ($row['StartTime'] && $row['EndTime']) {
+            $row['time'] = date("h:i A", strtotime($row['StartTime'])) . ' - ' . date("h:i A", strtotime($row['EndTime']));
+        } else {
+            $row['time'] = 'Time not assigned';
+        }
         $appointmentHistory[] = $row;
     }
     $stmt->close();
     
-    // Get comprehensive student info using actual database structure
+    // Get comprehensive student info
     $studentInfoSql = "SELECT CONCAT(firstName, ' ', lastName) AS full_name, 
                               studentID, email, contactNumber, dateOfBirth, course, year,
                               name, address, parentGuardian, gender, yearLevel,
@@ -82,6 +133,9 @@ if (!empty($studentID)) {
     $studentInfo = $studentInfoResult->fetch_assoc();
     $studentStmt->close();
 }
+
+// Close doctor verification
+$doctor_verify_stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -89,7 +143,8 @@ if (!empty($studentID)) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clinic Appointment System - Patient Records</title>
+  <title>My Patients - Dr. <?= htmlspecialchars($doctorInfo['FirstName']) ?> - Medical Clinic</title>
+  <!-- Keep all existing CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -796,22 +851,19 @@ if (!empty($studentID)) {
             <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
         </a></li>
         <li><a href="doctor_student.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_student.php' ? 'active' : '' ?>">
-            <i class="bi bi-calendar-check"></i> <span>Appointments</span>
+            <i class="bi bi-calendar-check"></i> <span>My Appointments</span>
         </a></li>
         <li><a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-lines-fill"></i> <span>Patient Records</span>
-        </a></li>
-        <li><a href="doctor_notes.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_notes.php' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
+            <i class="bi bi-person-lines-fill"></i> <span>My Patients</span>
         </a></li>
         <li><a href="doctor_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_profile.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-circle"></i> <span>Profile</span>
+            <i class="bi bi-person-circle"></i> <span>My Profile</span>
         </a></li>
         <li><a href="doctor_schedule.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_schedule.php' ? 'active' : '' ?>">
-            <i class="bi bi-calendar3"></i> <span>Schedule</span>
+            <i class="bi bi-calendar3"></i> <span>My Schedule</span>
         </a></li>
         <li><a href="doctor_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_report.php' ? 'active' : '' ?>">
-            <i class="bi bi-graph-up"></i> <span>Reports</span>
+            <i class="bi bi-graph-up"></i> <span>My Reports</span>
         </a></li>
     </ul>
 </aside>
@@ -822,10 +874,19 @@ if (!empty($studentID)) {
         <button class="toggle-sidebar" id="sidebarToggle">
             <i class="bi bi-list"></i>
         </button>
-        <h1 class="header-title">Medical Clinic Notify+</h1>
+        <h1 class="header-title">My Patients - Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?></h1>
     </div>
     
     <div class="header-actions">
+        <span class="text-muted me-3">
+            <?= htmlspecialchars($doctorInfo['Specialization']) ?>
+        </span>
+        <a href="doctor_dashboard.php" class="btn btn-sm btn-outline-primary me-2">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+        <a href="doctor_logout.php" class="btn btn-sm btn-outline-danger me-2">
+            <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
         <button onclick="printPage()" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-printer"></i> Print
         </button>
@@ -840,30 +901,47 @@ if (!empty($studentID)) {
     <div class="container-fluid">
         <!-- Simple page header -->
         <div class="page-header">
-            <h1><i class="bi bi-person-lines-fill me-2"></i>Patient Records</h1>
-            <p>View comprehensive patient appointment history and medical information</p>
+            <h1><i class="bi bi-person-lines-fill me-2"></i>My Patients</h1>
+            <p>Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?> - View patient records for appointments assigned to you</p>
         </div>
         
         <!-- Simple search form -->
         <div class="card">
             <div class="card-header">
-                <i class="bi bi-search me-2"></i>Select Patient
+                <i class="bi bi-search me-2"></i>Select My Patient
             </div>
             <div class="card-body">
+                <?php if (isset($_GET['error']) && $_GET['error'] === 'unauthorized'): ?>
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        You can only view patients who have appointments with you.
+                    </div>
+                <?php endif; ?>
+                
                 <form action="" method="GET" class="row g-3">
                     <div class="col-md-8">
-                        <label for="studentID" class="form-label">Student Name</label>
-                        <select name="studentID" id="studentID" class="form-select">
-                            <option value="">-- Select a patient --</option>
-                            <?php foreach ($students as $student): ?>
-                                <option value="<?= $student['studentID'] ?>" <?= ($studentID == $student['studentID']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($student['student_name']) ?> (ID: <?= $student['studentID'] ?>)
-                                </option>
-                            <?php endforeach; ?>
+                        <label for="studentID" class="form-label">Patient Name</label>
+                        <select name="studentID" id="studentID" class="form-select" style="height: 48px;">
+                            <option value="">-- Select one of your patients --</option>
+                            <?php if (count($students) > 0): ?>
+                                <?php foreach ($students as $student): ?>
+                                    <option value="<?= $student['studentID'] ?>" <?= ($studentID == $student['studentID']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($student['student_name']) ?> (ID: <?= $student['studentID'] ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <option value="" disabled>No patients found - appointments will appear here</option>
+                            <?php endif; ?>
                         </select>
+                        <?php if (count($students) === 0): ?>
+                            <small class="text-muted">
+                                You don't have any patients yet. Patients will appear here once they book appointments with you.
+                            </small>
+                        <?php endif; ?>
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">
+                    <div class="col-md-4">
+                        <label class="form-label invisible">Button</label>
+                        <button type="submit" class="btn btn-primary w-100 d-block" style="height: 48px;" <?= count($students) === 0 ? 'disabled' : '' ?>>
                             <i class="bi bi-search me-2"></i>View Records
                         </button>
                     </div>

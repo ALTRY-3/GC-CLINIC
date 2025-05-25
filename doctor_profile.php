@@ -686,9 +686,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <li><a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
             <i class="bi bi-person-lines-fill"></i> <span>My Patients</span>
         </a></li>
-        <li><a href="doctor_notes.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_notes.php' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
-        </a></li>
         <li><a href="doctor_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_profile.php' ? 'active' : '' ?>">
             <i class="bi bi-person-circle"></i> <span>My Profile</span>
         </a></li>

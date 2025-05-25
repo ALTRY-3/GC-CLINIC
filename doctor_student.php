@@ -580,25 +580,22 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </div>
     <div class="sidebar-divider"></div>
     <ul class="sidebar-menu">
-        <li><a href="doctor_dashboard.php" class="<?= $currentPage === 'doctor_dashboard.php' ? 'active' : '' ?>">
+        <li><a href="doctor_dashboard.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_dashboard.php' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
         </a></li>
-        <li><a href="doctor_student.php" class="<?= $currentPage === 'doctor_student.php' ? 'active' : '' ?>">
+        <li><a href="doctor_student.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_student.php' ? 'active' : '' ?>">
             <i class="bi bi-calendar-check"></i> <span>My Appointments</span>
         </a></li>
-        <li><a href="student_viewer.php" class="<?= $currentPage === 'student_viewer.php' ? 'active' : '' ?>">
+        <li><a href="student_viewer.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_viewer.php' ? 'active' : '' ?>">
             <i class="bi bi-person-lines-fill"></i> <span>My Patients</span>
         </a></li>
-        <li><a href="doctor_notes.php" class="<?= $currentPage === 'doctor_notes.php' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> <span>Patient Notes</span>
-        </a></li>
-        <li><a href="doctor_profile.php" class="<?= $currentPage === 'doctor_profile.php' ? 'active' : '' ?>">
+        <li><a href="doctor_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_profile.php' ? 'active' : '' ?>">
             <i class="bi bi-person-circle"></i> <span>My Profile</span>
         </a></li>
-        <li><a href="doctor_schedule.php" class="<?= $currentPage === 'doctor_schedule.php' ? 'active' : '' ?>">
+        <li><a href="doctor_schedule.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_schedule.php' ? 'active' : '' ?>">
             <i class="bi bi-calendar3"></i> <span>My Schedule</span>
         </a></li>
-        <li><a href="doctor_report.php" class="<?= $currentPage === 'doctor_report.php' ? 'active' : '' ?>">
+        <li><a href="doctor_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'doctor_report.php' ? 'active' : '' ?>">
             <i class="bi bi-graph-up"></i> <span>My Reports</span>
         </a></li>
     </ul>
