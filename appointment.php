@@ -355,7 +355,7 @@ $notifications = $notificationStmt->get_result();
         }
         
         .search-btn {
-            background: var(--secondary);
+            background: var(--primary);
             color: white;
             border: none;
             padding: 12px 20px;
@@ -371,7 +371,7 @@ $notifications = $notificationStmt->get_result();
         }
         
         .search-btn:hover {
-            background: var(--secondary-dark);
+            background: var(--primary-dark);
             transform: translateY(-2px);
         }
         
@@ -794,6 +794,15 @@ $notifications = $notificationStmt->get_result();
                 max-width: 320px;
                 right: -15px;
             }
+        }
+        
+        /* Make specific icons green */
+        .date-section h2 .bi-calendar3,
+        .doctors-header h2 .bi-person-badge {
+            color: var(--primary) !important;
+        }
+        .search-btn .bi-search {
+            color: #fff !important;
         }
     </style>
 </head>

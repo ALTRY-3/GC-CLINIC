@@ -51,316 +51,246 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard</title>
+    <title>Student Profile</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* General styles */
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #60ad5e;
+            --primary-dark: #1b5e20;
+            --secondary: #1565c0;
+            --secondary-light: #5e92f3;
+            --secondary-dark: #003c8f;
+            --text-dark: #263238;
+            --text-medium: #546e7a;
+            --text-light: #78909c;
+            --surface-light: #f5f7fa;
+            --surface-medium: #e1e5eb;
+            --surface-dark: #cfd8dc;
+            --danger: #d32f2f;
+            --success: #388e3c;
+            --warning: #f57c00;
+            --shadow-sm: 0 2px 6px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+        
         body {
             margin: 0;
             font-family: 'Poppins', sans-serif;
-            overflow-x: hidden;
+            background-color: var(--surface-light);
+            color: var(--text-dark);
         }
-
-        /* Sidebar DESIGN */
+        
+        /* Layout */
+        .app-container {
+            display: grid;
+            min-height: 100vh;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas: 
+                "sidebar header"
+                "sidebar main";
+        }
+        
+        /* Sidebar */
         .sidebar {
+            grid-area: sidebar;
             width: 260px;
-            height: 100vh;
+            background: var(--primary);
+            transition: all 0.3s ease;
             position: fixed;
-            background-color: #2e7d32 !important;
-            color: white;
-            padding-top: 15px;
-            box-shadow: 4px 0 15px rgba(46, 125, 50, 0.15);
-            transition: transform 0.3s ease;
-            z-index: 2000;
-            overflow-y: hidden;
-            left: 0;
-            top: 0;
-            display: block;
+            height: 100vh;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
         }
-
-        .sidebar img {
-            width: 65%;
-            height: auto;
-            margin: 0 auto 15px;
-            display: block;
-            filter: none;
-            transition: transform 0.3s ease;
+        
+        .sidebar-collapsed {
+            transform: translateX(-260px);
         }
-
-        .sidebar img:hover {
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-logo {
+            width: 70%;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-logo:hover {
             transform: scale(1.05);
         }
-
+        
         .sidebar-divider {
-            border-bottom: 1.5px solid #60ad5e;
-            margin: 12px 20px;
+            border-bottom: 1px solid var(--primary-light);
+            margin: 8px 20px;
         }
-
-        .sidebar a {
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar-menu a {
             display: flex;
             align-items: center;
-            color: #fff;
-            text-decoration: none;
             padding: 14px 25px;
-            width: 100%;
-            transition: all 0.3s ease;
-            font-size: 0.95rem;
+            color: white;
+            text-decoration: none;
+            transition: all 0.2s ease;
             font-weight: 500;
-            position: relative;
-            overflow: hidden;
         }
-
-        .sidebar a i {
-            margin-right: 12px;
-            font-size: 1.2rem;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar a:hover {
-            background: #60ad5e;
-            color: #fff;
+        
+        .sidebar-menu a:hover {
+            background: var(--primary-light);
             padding-left: 30px;
         }
-
-        .sidebar a:hover i {
+        
+        .sidebar-menu a.active {
+            background: var(--primary-light);
+            border-right: 4px solid white;
+        }
+        
+        .sidebar-menu i {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        
+        .sidebar-menu a:hover i {
             transform: translateX(3px);
         }
-
-        .sidebar a.active {
-            background: #60ad5e;
-            color: #fff;
-            border-right: 6px solid #388e3c;
-        }
-
-        /* Top Bar Part */
-        .top-bar.custom-navbar {
-            width: calc(100% - 260px);
-            height: 65px;
-            background-color: #2e7d32;
-            color: #fff;
+        
+        /* Header */
+        .header {
+            grid-area: header;
+            background: white;
+            padding: 15px 30px;
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            font-size: 1.15rem;
-            font-weight: 400;
-            margin-left: 260px;
             justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 90;
             transition: all 0.3s ease;
-            box-shadow: none;
-            border-bottom: none;
-            letter-spacing: 0.5px;
         }
-
-        .navbar-title {
-            font-size: 1.1em;
-            font-weight: 400;
-            letter-spacing: 0.5px;
+        
+        .header-expanded {
+            margin-left: 260px;
         }
-
-        .navbar-user {
-            position: relative;
-            cursor: pointer;
-        }
-
-        .navbar-dropdown {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 110%;
-            min-width: 210px;
-            background: #fff;
-            color: #222;
-            border-radius: 8px;
-            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
-            border: 1.5px solid #e3f0fc;
-            z-index: 9999;
-            font-size: 1rem;
-            padding: 0.5rem 0;
-        }
-
-        .navbar-dropdown.show {
-            display: block;
-        }
-
-        .navbar-dropdown .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 18px;
-            color: #222;
-            text-decoration: none;
-            background: none;
-            border: none;
-            width: 100%;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .navbar-dropdown .dropdown-item:hover {
-            background: #f4f8fd;
-        }
-
-        .navbar-dropdown .dropdown-divider {
-            height: 1px;
-            background: #e3f0fc;
-            margin: 4px 0;
-            border: none;
-        }
-
-        .navbar-dropdown .notification-bell {
-            position: relative;
-            background: none;
-            margin: 0;
-            padding: 0;
-            box-shadow: none;
-        }
-
-        .navbar-dropdown .notification-count {
-            position: absolute;
-            top: -6px;
-            right: -10px;
-            background: #ff4444;
-            color: white;
-            border-radius: 50%;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 5px;
-            font-size: 0.75rem;
+        
+        .header-title {
             font-weight: 600;
+            font-size: 1.4rem;
+            color: var(--primary);
+        }
+        
+        .header-actions {
             display: flex;
             align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 5px rgba(255, 68, 68, 0.3);
+            gap: 20px;
         }
-
-        .navbar-username {
-            text-transform: uppercase;
-            font-size: 1em;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-        }
-
-        /* Notification Bell */
-        .notification-bell {
-            position: relative;
+        
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            color: var(--primary);
             cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.1);
-            margin-left: 15px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s;
         }
-
-        .notification-bell:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
+        
+        .toggle-sidebar:hover {
+            background: var(--surface-light);
         }
-
-        .notification-bell i {
-            font-size: 1.3rem;
-            color: #fff;
+        
+        .welcome-message {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: var(--text-medium);
         }
-
+        
+        .welcome-message i {
+            color: var(--primary);
+        }
+        
+        .notifications {
+            position: relative;
+        }
+        
+        .notification-btn {
+            background: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary);
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .notification-btn:hover {
+            background: var(--surface-light);
+        }
+        
         .notification-count {
             position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #ff4444;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
             color: white;
             border-radius: 50%;
-            min-width: 20px;
+            width: 20px;
             height: 20px;
-            padding: 0 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.7rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 5px rgba(255, 68, 68, 0.3);
             animation: pulse 2s infinite;
         }
-
+        
         @keyframes pulse {
-            0% {
-                transform: scale(1);
-                box-shadow: 0 2px 5px rgba(255, 68, 68, 0.3);
-            }
-            50% {
-                transform: scale(1.1);
-                box-shadow: 0 4px 8px rgba(255, 68, 68, 0.4);
-            }
-            100% {
-                transform: scale(1);
-                box-shadow: 0 2px 5px rgba(255, 68, 68, 0.3);
-            }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
-
-        /* Toggle Button */
-        .toggle-btn {
-            position: fixed;
-            left: 260px;
-            top: 20px;
-            background: #fff;
-            color: #1976d2;
-            border: none;
-            width: 35px;
-            height: 35px;
+        
+        /* Main Content */
+        .main-content {
+            grid-area: main;
             padding: 0;
-            border-radius: 50%;
-            box-shadow: 0 2px 10px rgba(1, 31, 75, 0.15);
-            cursor: pointer;
-            z-index: 1100;
             transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .toggle-btn:hover {
-            background: #e3f0fc;
-        }
-
-        .toggle-btn i {
-            font-size: 1.1rem;
-            transition: transform 0.3s ease;
-        }
-
-        /* Welcome Text */
-        .welcome-text {
-            font-size: 1rem;
-            color: rgba(255, 255, 255, 0.9);
-            margin-right: 20px;
-            display: flex;
-            align-items: center;
-        }
-
-        .welcome-text i {
-            margin-right: 8px;
-            font-size: 1.1rem;
-        }
-
-        .main-content {
-            margin-left: 260px;
-            padding: 20px;
-            padding-top: 70px;
-            transition: margin-left 0.3s ease;
-        }
-
-        .main-content {
-            margin-left: 260px;
-            padding: 0;
             min-height: 100vh;
             background: #f6faff;
         }
-
-        /* Profile Header Bar */
+        
+        .main-expanded {
+            margin-left: 260px;
+        }
+        
+        /* Profile Styles */
         .profile-header-bar {
             background: #fff;
             display: flex;
@@ -370,7 +300,7 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             margin-bottom: 0;
             border-bottom: 1px solid #e0e0e0;
         }
-
+        
         .profile-photo-container {
             width: 70px;
             height: 70px;
@@ -380,45 +310,45 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 3px solid #2e7d32;
+            border: 3px solid var(--primary);
             flex-shrink: 0;
         }
-
+        
         .profile-photo-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-
+        
         .profile-photo-container i {
             font-size: 3rem;
-            color: #2e7d32;
+            color: var(--primary);
         }
-
+        
         .profile-header-info {
             margin-left: 15px;
             flex-grow: 1;
         }
-
+        
         .profile-header-info h2 {
             margin: 0;
             font-size: 1.5rem;
             font-weight: 600;
-            color: #2e7d32;
+            color: var(--primary);
         }
-
+        
         .profile-id-badge {
             display: inline-block;
             background: #e8f5e9;
-            color: #2e7d32;
+            color: var(--primary);
             padding: 3px 10px;
             border-radius: 15px;
             font-size: 0.9rem;
             margin-top: 3px;
         }
-
+        
         .edit-profile-btn {
-            background: #2e7d32;
+            background: var(--primary);
             color: white;
             border: none;
             border-radius: 5px;
@@ -430,28 +360,28 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             cursor: pointer;
             transition: all 0.2s;
         }
-
+        
         .edit-profile-btn:hover {
-            background: #1b5e20;
+            background: var(--primary-dark);
             transform: translateY(-2px);
         }
-
+        
         .profile-content {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 15px;
             padding: 15px;
         }
-
+        
         .info-section {
             background: white;
             border-radius: 5px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             overflow: hidden;
         }
-
+        
         .info-header {
-            background: #2e7d32;
+            background: var(--primary);
             color: white;
             padding: 10px 15px;
             font-weight: 500;
@@ -460,39 +390,210 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
             align-items: center;
             gap: 8px;
         }
-
+        
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
             padding: 15px;
         }
-
+        
         .info-item {
             border-bottom: 1px solid #f0f0f0;
             padding-bottom: 5px;
         }
-
+        
         .info-label {
             font-size: 0.8rem;
             color: #666;
             margin-bottom: 3px;
         }
-
+        
         .info-value {
             font-size: 1rem;
             font-weight: 500;
             color: #333;
             word-break: break-word;
         }
-
+        
         /* Make Medical Information section full width */
         .info-section:last-child {
             grid-column: 1 / -1;
         }
-
-        /* Responsive adjustments */
+        
+        /* Notification Dropdown */
+        .notification-dropdown {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            width: 320px;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            overflow: hidden;
+            display: none;
+            animation: fadeInDown 0.3s;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .notification-header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .notification-list {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        
+        .notification-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--surface-light);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .notification-item:hover {
+            background: var(--surface-light);
+        }
+        
+        .notification-icon {
+            color: var(--primary);
+            background: var(--surface-light);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .notification-content {
+            flex-grow: 1;
+        }
+        
+        .notification-message {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            line-height: 1.4;
+        }
+        
+        .notification-date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        .no-notifications {
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text-light);
+        }
+        
+        /* Modals */
+        .modal-content {
+            border-radius: var(--radius-md);
+            border: none;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background: var(--primary);
+            color: white;
+            border-bottom: none;
+            padding: 20px 25px;
+        }
+        
+        .modal-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .modal-body {
+            padding: 25px;
+        }
+        
+        /* Change Password Modal */
+        .change-password-modal-content {
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
+            padding: 0;
+        }
+        
+        #changePasswordModal .modal-header {
+            border-bottom: none;
+        }
+        
+        #changePasswordModal .modal-title {
+            font-size: 1.3rem;
+        }
+        
+        #changePasswordModal .form-label {
+            font-weight: 500;
+        }
+        
+        #changePasswordModal .form-control {
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        #changePasswordModal .input-group .btn {
+            border-radius: 0 8px 8px 0;
+        }
+        
+        #changePasswordModal .btn-primary {
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 1.08rem;
+            background: #2563eb;
+            border: none;
+        }
+        
+        #changePasswordModal .btn-primary:disabled {
+            background: #e0e0e0;
+            color: #aaa;
+            border: none;
+        }
+        
+        /* Responsive */
         @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-260px);
+            }
+            
+            .header, .main-content {
+                margin-left: 0 !important;
+            }
+            
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .toggle-sidebar {
+                display: flex;
+            }
+            
             .profile-content {
                 grid-template-columns: 1fr;
             }
@@ -511,329 +612,221 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
                 margin-top: 10px;
             }
         }
-
+        
         @media (max-width: 576px) {
+            .header {
+                padding: 15px;
+            }
+            
+            .header-title {
+                font-size: 1.2rem;
+            }
+            
+            .welcome-message span {
+                display: none;
+            }
+            
+            .main-content {
+                padding: 0;
+            }
+            
             .info-grid {
                 grid-template-columns: 1fr;
             }
-        }
-
-        /* Media queries for responsiveness */
-        @media (max-width: 992px) {
-            .profile-grid {
-                grid-template-columns: repeat(8, 1fr);
-            }
             
-            .profile-photo-card {
-                grid-column: span 8;
-                grid-row: span 1;
-            }
-            
-            .profile-card:nth-child(2),
-            .profile-card:nth-child(3),
-            .profile-card:nth-child(4),
-            .profile-card:nth-child(5) {
-                grid-column: span 8;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .profile-header {
-                text-align: center;
-            }
-            
-            .card-header {
-                padding: 12px 15px;
-            }
-            
-            .card-body {
-                padding: 15px;
-            }
-            
-            .profile-title {
-                font-size: 1.5rem;
-            }
-            
-            .profile-action-card {
-                padding: 15px;
-            }
-        }
-
-        .notification-dropdown {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
-            max-height: 400px;
-            min-width: 200px;
-            width: 90vw;
-            max-width: 270px;
-            overflow-y: auto;
-            padding: 0;
-            border: 1.5px solid #e3f0fc;
-            animation: fadeIn 0.2s;
-            right: 0;
-            left: auto;
-            font-size: 1rem;
-        }
-
-        @media (max-width: 400px) {
             .notification-dropdown {
-                min-width: 0;
-                width: 98vw;
-                max-width: 98vw;
-                font-size: 0.95rem;
-                padding: 0;
+                width: 100%;
+                max-width: 320px;
+                right: -15px;
             }
-            .notification-dropdown .dropdown-header {
-                font-size: 1rem;
-                padding: 10px 10px;
-            }
-            .notification-dropdown .dropdown-item {
-                padding: 10px 10px;
-                font-size: 0.93rem;
-            }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px);}
-            to { opacity: 1; transform: translateY(0);}
-        }
-        .notification-dropdown .dropdown-header {
-            background: #1976d2;
-            color: #fff;
-            font-weight: 600;
-            padding: 14px 18px;
-            border-radius: 12px 12px 0 0;
-            font-size: 1.1rem;
-            letter-spacing: 0.5px;
-        }
-        .notification-dropdown .dropdown-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 14px 18px;
-            border-bottom: 1px solid #f0f4fa;
-            font-size: 0.98rem;
-            background: #fff;
-            transition: background 0.2s;
-        }
-        .notification-dropdown .dropdown-item:last-child {
-            border-bottom: none;
-        }
-        .notification-dropdown .dropdown-item:hover {
-            background: #f4f8fd;
-        }
-        .notification-dropdown .notif-icon {
-            color: #1976d2;
-            font-size: 1.3rem;
-            margin-top: 2px;
-        }
-        .notification-dropdown .notif-message {
-            flex: 1;
-            color: #222;
-            font-size: 0.92rem;
-            font-weight: 500;
-            line-height: 1.4;
-            word-break: break-word;
-        }
-        .notification-dropdown .notif-date {
-            color: #888;
-            font-size: 0.82rem;
-            margin-top: 2px;
-            font-weight: 400;
-        }
-        .notification-dropdown .no-notif {
-            text-align: center;
-            color: #aaa;
-            padding: 30px 0;
-            font-size: 1rem;
-        }
-        .change-password-modal-content {
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(1,31,75,0.18);
-            padding: 0 0 0 0;
-        }
-        #changePasswordModal .modal-header {
-            border-bottom: none;
-        }
-        #changePasswordModal .modal-title {
-            font-size: 1.3rem;
-        }
-        #changePasswordModal .form-label {
-            font-weight: 500;
-        }
-        #changePasswordModal .form-control {
-            border-radius: 8px;
-            font-size: 1rem;
-        }
-        #changePasswordModal .input-group .btn {
-            border-radius: 0 8px 8px 0;
-        }
-        #changePasswordModal .btn-primary {
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 1.08rem;
-            background: #2563eb;
-            border: none;
-        }
-        #changePasswordModal .btn-primary:disabled {
-            background: #e0e0e0;
-            color: #aaa;
-            border: none;
         }
     </style>
 </head>
 <body>
-    <button class="toggle-btn" id="sidebarToggle" aria-label="Toggle sidebar">
-        <i class="bi bi-chevron-double-right"></i>
-    </button>
-
-    <div class="sidebar" id="sidebar">
-        <img src="img/GCLINIC.png" alt="Logo">
-        <div class="sidebar-divider"></div>
-        <a href="studentDashboard.php"><i class="bi bi-house"></i> Home</a>
-        <a href="studentHome.php" class="active"><i class="bi bi-person"></i> Profile</a>
-        <a href="appointment.php"><i class="bi bi-journal-plus"></i> Schedule Appointment</a>
-        <a href="schedule.php"><i class="bi bi-journal-arrow-down"></i> My Appointments</a>
-        <a href="services.php"><i class="bi bi-journal-album"></i> Service</a>
-        <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </div>
-
-    <div class="top-bar custom-navbar">
-        <div class="navbar-title">Student Information System</div>
-        <div class="navbar-user" id="navbarUser">
-            <i class="bi bi-person-circle"></i>
-            <span class="navbar-username"><?php echo strtoupper(htmlspecialchars($student_data['name'] ?? '')); ?></span>
-            <i class="bi bi-caret-down-fill" style="font-size: 0.9em; margin-left: 4px;"></i>
-            <div class="navbar-dropdown" id="navbarDropdown">
-                <button class="dropdown-item notification-bell" type="button" id="notificationDropdownBtn">
-                    <i class="bi bi-bell-fill"></i>
-                    Notifications
-                    <?php if ($notifications->num_rows > 0): ?>
-                        <span class="notification-count"><?php echo $notifications->num_rows; ?></span>
-                    <?php endif; ?>
-                </button>
-                <hr class="dropdown-divider">
-                <button class="dropdown-item" id="openChangePasswordModal" type="button">
-                    <i class="bi bi-key"></i> Change Password
-                </button>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
             </div>
-        </div>
-    </div>
-
-    <div class="main-content" style="margin-left:260px; padding:0; min-height:100vh; background:#f6faff;">
-        <!-- Profile Header Bar -->
-        <div class="profile-header-bar">
-            <div class="profile-photo-container">
-                <?php if (!empty($student_data['profilePhoto']) && file_exists($student_data['profilePhoto'])): ?>
-                    <img src="<?php echo htmlspecialchars($student_data['profilePhoto']); ?>" alt="Profile Photo" class="profile-photo">
-                <?php else: ?>
+            <div class="sidebar-divider"></div>
+            <ul class="sidebar-menu">
+                <li><a href="studentDashboard.php"><i class="bi bi-house"></i> Home</a></li>
+                <li><a href="studentHome.php" class="active"><i class="bi bi-person"></i> Profile</a></li>
+                <li><a href="appointment.php"><i class="bi bi-journal-plus"></i> Schedule Appointment</a></li>
+                <li><a href="schedule.php"><i class="bi bi-journal-arrow-down"></i> My Appointments</a></li>
+                <li><a href="services.php"><i class="bi bi-journal-album"></i> Service</a></li>
+                <li><a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+            </ul>
+        </aside>
+        
+        <!-- Header -->
+        <header class="header header-expanded" id="header">
+            <div class="d-flex align-items-center">
+                <button class="toggle-sidebar me-3" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="header-title">Medical Clinic Notify+</h1>
+            </div>
+            
+            <div class="header-actions">
+                <div class="welcome-message">
                     <i class="bi bi-person-circle"></i>
-                <?php endif; ?>
-            </div>
-            <div class="profile-header-info">
-                <h2><?php echo htmlspecialchars(trim(($student_data['firstName'] ?? '') . ' ' . ($student_data['lastName'] ?? ''))); ?></h2>
-                <div class="profile-id-badge"><?php echo htmlspecialchars($student_data['studentID'] ?? ''); ?></div>
-            </div>
-            <button type="button" class="edit-profile-btn" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
-                <i class="bi bi-pencil-square"></i> Edit Profile
-            </button>
-        </div>
-
-        <!-- Profile Content Grid -->
-        <div class="profile-content">
-            <!-- Personal Information -->
-            <div class="info-section">
-                <div class="info-header">
-                    <i class="bi bi-person-badge"></i> Personal Information
+                    <span>Welcome, <?php echo htmlspecialchars($student_data['firstName'] ?? 'Student'); ?></span>
                 </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">College/Program</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['course'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Gender</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['gender'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Address</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['address'] ?? ''); ?></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Contact Information -->
-            <div class="info-section">
-                <div class="info-header">
-                    <i class="bi bi-envelope"></i> Contact Information
-                </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Email Address</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['email'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Alternate Email</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['altEmail'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Contact Number</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['contactNumber'] ?? ''); ?></div>
+                
+                <div class="notifications">
+                    <button class="notification-btn" id="notificationBtn">
+                        <i class="bi bi-bell-fill"></i>
+                        <?php if ($notifications->num_rows > 0): ?>
+                            <span class="notification-count"><?php echo $notifications->num_rows; ?></span>
+                        <?php endif; ?>
+                    </button>
+                    
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-header">
+                            <i class="bi bi-bell"></i> Notifications
+                        </div>
+                        <div class="notification-list">
+                            <?php if ($notifications->num_rows > 0): ?>
+                                <?php foreach ($notifications as $notif): ?>
+                                    <div class="notification-item" data-id="<?php echo $notif['notificationID']; ?>">
+                                        <div class="notification-icon">
+                                            <i class="bi bi-info-circle"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-message"><?php echo htmlspecialchars($notif['message']); ?></div>
+                                            <div class="notification-date"><?php echo date('M d, Y h:i A', strtotime($notif['created_at'] ?? '')); ?></div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="no-notifications">
+                                    <i class="bi bi-bell-slash mb-2"></i>
+                                    <p>No new notifications</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Emergency Contact -->
-            <div class="info-section">
-                <div class="info-header">
-                    <i class="bi bi-shield-plus"></i> Emergency Information
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content main-expanded" id="mainContent">
+            <!-- Profile Header Bar -->
+            <div class="profile-header-bar">
+                <div class="profile-photo-container">
+                    <?php if (!empty($student_data['profilePhoto']) && file_exists($student_data['profilePhoto'])): ?>
+                        <img src="<?php echo htmlspecialchars($student_data['profilePhoto']); ?>" alt="Profile Photo" class="profile-photo">
+                    <?php else: ?>
+                        <i class="bi bi-person-circle"></i>
+                    <?php endif; ?>
                 </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Parent/Guardian</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['parentGuardian'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Parent Contact</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['parentContact'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Emergency Contact</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['emergencyContactName'] ?? ''); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Relationship</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['emergencyContactRelationship'] ?? ''); ?></div>
-                    </div>
+                <div class="profile-header-info">
+                    <h2><?php echo htmlspecialchars(trim(($student_data['firstName'] ?? '') . ' ' . ($student_data['lastName'] ?? ''))); ?></h2>
+                    <div class="profile-id-badge"><?php echo htmlspecialchars($student_data['studentID'] ?? ''); ?></div>
                 </div>
+                <button type="button" class="edit-profile-btn" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
+                    <i class="bi bi-pencil-square"></i> Edit Profile
+                </button>
             </div>
 
-            <!-- Medical Information -->
-            <div class="info-section">
-                <div class="info-header">
-                    <i class="bi bi-heart-pulse"></i> Medical Information
+            <!-- Profile Content Grid -->
+            <div class="profile-content">
+                <!-- Personal Information -->
+                <div class="info-section">
+                    <div class="info-header">
+                        <i class="bi bi-person-badge"></i> Personal Information
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">College/Program</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['course'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Gender</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['gender'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Address</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['address'] ?? ''); ?></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Blood Type</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['bloodType'] ?? 'Not specified'); ?></div>
+
+                <!-- Contact Information -->
+                <div class="info-section">
+                    <div class="info-header">
+                        <i class="bi bi-envelope"></i> Contact Information
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Allergies</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['allergies'] ?? 'None'); ?></div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Email Address</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['email'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Alternate Email</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['altEmail'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Contact Number</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['contactNumber'] ?? ''); ?></div>
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Medical Conditions</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['medicalConditions'] ?? 'None'); ?></div>
+                </div>
+
+                <!-- Emergency Contact -->
+                <div class="info-section">
+                    <div class="info-header">
+                        <i class="bi bi-shield-plus"></i> Emergency Information
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Medications</div>
-                        <div class="info-value"><?php echo htmlspecialchars($student_data['medications'] ?? 'None'); ?></div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Parent/Guardian</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['parentGuardian'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Parent Contact</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['parentContact'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Emergency Contact</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['emergencyContactName'] ?? ''); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Relationship</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['emergencyContactRelationship'] ?? ''); ?></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medical Information -->
+                <div class="info-section">
+                    <div class="info-header">
+                        <i class="bi bi-heart-pulse"></i> Medical Information
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Blood Type</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['bloodType'] ?? 'Not specified'); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Allergies</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['allergies'] ?? 'None'); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Medical Conditions</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['medicalConditions'] ?? 'None'); ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Medications</div>
+                            <div class="info-value"><?php echo htmlspecialchars($student_data['medications'] ?? 'None'); ?></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <!-- Update Profile Modal -->
@@ -845,7 +838,7 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                <form method="POST" action="update.php" id="updateProfileForm" class="needs-validation" novalidate enctype="multipart/form-data">
+                    <form method="POST" action="update.php" id="updateProfileForm" class="needs-validation" novalidate enctype="multipart/form-data">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-floating mb-3">
@@ -958,11 +951,9 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content change-password-modal-content">
-                <div class="modal-header" style="border-bottom: none;">
-                    <h5 class="modal-title" id="changePasswordModalLabel" style="color:#2563eb;font-weight:600;font-size:1.3rem;">
-                        <span style="font-size:1.5rem;font-weight:700;letter-spacing:1px;">***</span>Change Password
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="font-size:1.3rem;"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel" style="color:#fff;">Change Password</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-2" style="color:#d32f2f;font-size:0.98rem;font-weight:500;">
@@ -999,228 +990,113 @@ echo "<!-- Debug: Final student_data array: " . print_r($student_data, true) . "
         </div>
     </div>
 
-    <?php if (isset($_SESSION['success_message'])): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?php 
-            echo $_SESSION['success_message'];
-            unset($_SESSION['success_message']);
-            ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-
-    <?php if (isset($_SESSION['error_message'])): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php 
-            echo $_SESSION['error_message'];
-            unset($_SESSION['error_message']);
-            ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
             const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            const mainContent = document.querySelector('.main-content');
-            const topBar = document.querySelector('.top-bar');
-
-            // Function to update sidebar state
-            function updateSidebarState(isCollapsed) {
-                if (isCollapsed) {
-                    sidebar.style.transform = 'translateX(-260px)';
-                    mainContent.style.marginLeft = '0';
-                    topBar.style.marginLeft = '0';
-                    topBar.style.width = '100%';
-                    toggleBtn.style.left = '20px';
-                    toggleBtn.innerHTML = '<i class="bi bi-chevron-double-right"></i>';
+            const header = document.getElementById('header');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const notificationBtn = document.getElementById('notificationBtn');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            
+            // Toggle Sidebar
+            function toggleSidebar() {
+                const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                
+                if (isSidebarCollapsed) {
+                    sidebar.classList.remove('sidebar-collapsed');
+                    header.classList.add('header-expanded');
+                    mainContent.classList.add('main-expanded');
                 } else {
-                    sidebar.style.transform = 'translateX(0)';
-                    mainContent.style.marginLeft = '260px';
-                    topBar.style.marginLeft = '260px';
-                    topBar.style.width = 'calc(100% - 260px)';
-                    toggleBtn.style.left = '260px';
-                    toggleBtn.innerHTML = '<i class="bi bi-chevron-double-left"></i>';
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
                 }
             }
-
-            // Initial state based on screen size
+            
+            // Set initial state based on screen size
             function setInitialState() {
                 if (window.innerWidth <= 992) {
-                    updateSidebarState(true);
-                } else {
-                    updateSidebarState(false);
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
                 }
             }
-
-            // Toggle button click handler
-            toggleBtn.addEventListener('click', function() {
-                const isCurrentlyCollapsed = sidebar.style.transform === 'translateX(-260px)';
-                updateSidebarState(!isCurrentlyCollapsed);
-            });
-
+            
+            // Toggle sidebar event
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            
             // Handle window resize
             window.addEventListener('resize', function() {
                 if (window.innerWidth <= 992) {
-                    updateSidebarState(true);
-                } else {
-                    updateSidebarState(false);
+                    sidebar.classList.add('sidebar-collapsed');
+                    header.classList.remove('header-expanded');
+                    mainContent.classList.remove('main-expanded');
                 }
             });
-
-            // Set initial state
-            setInitialState();
-
-            // Form validation
-            const updateProfileForm = document.getElementById('updateProfileForm');
-            updateProfileForm.addEventListener('submit', function(event) {
-                if (!updateProfileForm.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                updateProfileForm.classList.add('was-validated');
-            }, { passive: true });
-
-            // Phone number validation
-            const phoneInputs = document.querySelectorAll('#updateProfileForm input[type="tel"]');
-            phoneInputs.forEach(input => {
-                input.addEventListener('input', function(e) {
-                    let value = e.target.value.replace(/\D/g, '');
-                    if (value.length > 11) {
-                        value = value.slice(0, 11);
-                    }
-                    e.target.value = value;
-                });
-            });
-
-            // Initialize tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-
-            const bell = document.querySelector('.notification-bell');
-            const dropdown = document.getElementById('notificationDropdown');
-            const notifCount = document.querySelector('.notification-count');
-
-            bell.addEventListener('click', function(e) {
+            
+            // Notification dropdown toggle
+            notificationBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                notificationDropdown.style.display = notificationDropdown.style.display === 'block' ? 'none' : 'block';
             });
-
-            // Hide dropdown when clicking outside
+            
+            // Close dropdown when clicking outside
             document.addEventListener('click', function() {
-                dropdown.style.display = 'none';
+                notificationDropdown.style.display = 'none';
             });
-
-            // Mark notification as read on click
+            
+            // Mark notification as read
             document.querySelectorAll('.notification-item').forEach(function(item) {
                 item.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const notifId = this.getAttribute('data-id');
+                    
                     fetch('mark_notification_read.php', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                         body: 'notification_id=' + encodeURIComponent(notifId)
-                    }).then(response => response.text()).then(data => {
-                        // Remove the notification from the dropdown
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        // Remove notification from list
                         this.remove();
-                        // Update the count
-                        let count = parseInt(notifCount.textContent, 10);
-                        if (count > 1) {
-                            notifCount.textContent = count - 1;
-                        } else {
-                            notifCount.remove();
-                            dropdown.querySelector('.dropdown-header').insertAdjacentHTML('afterend', '<div class="no-notif">No new notifications.</div>');
+                        
+                        // Update count
+                        const countElement = document.querySelector('.notification-count');
+                        if (countElement) {
+                            let count = parseInt(countElement.textContent, 10);
+                            if (count > 1) {
+                                countElement.textContent = count - 1;
+                            } else {
+                                countElement.remove();
+                                const noNotif = document.createElement('div');
+                                noNotif.className = 'no-notifications';
+                                noNotif.innerHTML = '<i class="bi bi-bell-slash mb-2"></i><p>No new notifications</p>';
+                                document.querySelector('.notification-list').innerHTML = '';
+                                document.querySelector('.notification-list').appendChild(noNotif);
+                            }
                         }
                     });
                 });
             });
-
-            // Dropdown toggle for navbar user
-            const navbarUser = document.getElementById('navbarUser');
-            const navbarDropdown = document.getElementById('navbarDropdown');
-            let dropdownOpen = false;
-            navbarUser.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdownOpen = !dropdownOpen;
-                navbarDropdown.classList.toggle('show', dropdownOpen);
-            });
-            document.addEventListener('click', function() {
-                if (dropdownOpen) {
-                    navbarDropdown.classList.remove('show');
-                    dropdownOpen = false;
-                }
-            });
-            // Optional: handle notification dropdown click
-            document.getElementById('notificationDropdownBtn').addEventListener('click', function(e) {
-                e.stopPropagation();
-                // You can show a modal or redirect to a notifications page here
-                // For now, just alert
-                alert('Show notifications here!');
-            });
-
-            // Change Password Modal logic
-            document.addEventListener('DOMContentLoaded', function() {
-                // Open modal on dropdown click
-                document.getElementById('openChangePasswordModal').addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
-                    modal.show();
-                    // Close dropdown
-                    document.getElementById('navbarDropdown').classList.remove('show');
+            
+            // Form validation 
+            const updateProfileForm = document.getElementById('updateProfileForm');
+            if (updateProfileForm) {
+                updateProfileForm.addEventListener('submit', function(event) {
+                    if (!updateProfileForm.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    updateProfileForm.classList.add('was-validated');
                 });
-
-                // Toggle password visibility
-                document.querySelectorAll('#changePasswordModal .toggle-password').forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        var input = this.parentElement.querySelector('input');
-                        var icon = this.querySelector('i');
-                        if (input.type === 'password') {
-                            input.type = 'text';
-                            icon.classList.remove('bi-eye-slash');
-                            icon.classList.add('bi-eye');
-                        } else {
-                            input.type = 'password';
-                            icon.classList.remove('bi-eye');
-                            icon.classList.add('bi-eye-slash');
-                        }
-                    });
-                });
-
-                // Enable submit only if all fields are valid and passwords match
-                var form = document.getElementById('changePasswordForm');
-                var submitBtn = document.getElementById('submitChangePassword');
-                var current = document.getElementById('currentPassword');
-                var newP = document.getElementById('newPassword');
-                var confirm = document.getElementById('confirmPassword');
-                function validateChangePassword() {
-                    var valid =
-                        current.value.length >= 8 &&
-                        newP.value.length >= 8 &&
-                        confirm.value.length >= 8 &&
-                        newP.value === confirm.value;
-                    submitBtn.disabled = !valid;
-                }
-                [current, newP, confirm].forEach(function(input) {
-                    input.addEventListener('input', validateChangePassword);
-                });
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    // TODO: Implement AJAX password change here
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Submitting...';
-                    setTimeout(function() {
-                        submitBtn.textContent = 'Submit';
-                        submitBtn.disabled = false;
-                        var modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
-                        modal.hide();
-                        alert('Password changed (demo only).');
-                    }, 1200);
-                });
-            });
+            }
+            
+            // Set initial state
+            setInitialState();
         });
     </script>
 </body>
