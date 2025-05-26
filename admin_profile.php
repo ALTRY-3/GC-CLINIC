@@ -644,17 +644,14 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </div>
     <div class="sidebar-divider"></div>
     <ul class="sidebar-menu">
-        <li><a href="admin_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'admin_profile.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-circle"></i> <span>My Profile</span>
-        </a></li>
         <li><a href="admin_dashboard.php" class="<?= basename($_SERVER['PHP_SELF']) === 'admin_dashboard.php' ? 'active' : '' ?>">
             <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
         </a></li>
+                <li><a href="admin_profile.php" class="<?= basename($_SERVER['PHP_SELF']) === 'admin_profile.php' ? 'active' : '' ?>">
+            <i class="bi bi-person-circle"></i> <span>My Profile</span>
+        </a></li>
         <li><a href="staff_management.php" class="<?= basename($_SERVER['PHP_SELF']) === 'staff_management.php' ? 'active' : '' ?>">
             <i class="bi bi-person-lines-fill"></i> <span>Staff Management</span>
-        </a></li>
-        <li><a href="student_management.php" class="<?= basename($_SERVER['PHP_SELF']) === 'student_management.php' ? 'active' : '' ?>">
-            <i class="bi bi-people"></i> <span>Users Management</span>
         </a></li>
         <li><a href="admin_report.php" class="<?= basename($_SERVER['PHP_SELF']) === 'admin_report.php' ? 'active' : '' ?>">
             <i class="bi bi-graph-up"></i> <span>Reports</span>
