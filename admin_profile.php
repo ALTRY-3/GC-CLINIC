@@ -666,7 +666,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </ul>
   </aside>
 
-  <!-- Header (same as before) -->
+  <!-- Header -->
   <header class="header header-expanded" id="header">
     <div class="d-flex align-items-center">
         <button class="toggle-sidebar" id="sidebarToggle">
@@ -676,18 +676,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </div>
     
     <div class="header-actions">
-        <span class="text-muted me-3">
-            System Administrator
-        </span>
-        <a href="admin_dashboard.php" class="btn btn-sm btn-outline-primary me-2">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        <a href="admin_login.php" class="btn btn-sm btn-outline-danger me-2">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
-        <button onclick="printPage()" class="btn btn-sm btn-light">
-            <i class="bi bi-printer"></i> Print
-        </button>
+        <!-- Removed all header action buttons -->
     </div>
   </header>
 

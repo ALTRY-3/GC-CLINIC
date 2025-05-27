@@ -639,13 +639,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             </div>
             
             <div class="header-actions">
-                <a href="admin_dashboard.php" class="btn btn-sm btn-outline-primary me-2">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-                
-                <a href="admin_login.php" onclick="return confirmLogout()" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </a>
+                <!-- Removed dashboard and logout buttons -->
             </div>
         </header>
 

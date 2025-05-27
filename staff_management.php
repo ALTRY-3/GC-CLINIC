@@ -858,13 +858,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             </div>
             
             <div class="header-actions">
-                <a href="admin_dashboard.php" class="btn btn-sm btn-outline-primary me-2">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-                
-                <a href="admin_login.php" onclick="return confirmLogout()" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </a>
+                <!-- Removed dashboard and logout buttons -->
             </div>
         </header>
 
@@ -1440,7 +1434,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         // Load timeslots for a doctor
         function loadTimeslots(doctorID) {
             fetch('manage_timeslot.php?doctorID=' + encodeURIComponent(doctorID))
-            .then(r => r.json())
+            .then r => r.json())
             .then(data => {
                 let html = '<table class="table table-sm"><thead><tr><th>Day</th><th>Start</th><th>End</th><th>Action</th></tr></thead><tbody>';
                 if (data.timeslots && data.timeslots.length) {
@@ -1470,7 +1464,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     body: 'delete=1&SlotID=' + encodeURIComponent(slotID)
                 })
-                .then(r => r.json())
+                .then r => r.json())
                 .then(data => {
                     if (data.success) {
                         loadTimeslots(doctorID);

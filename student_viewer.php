@@ -886,18 +886,7 @@ $doctor_verify_stmt->close();
     </div>
     
     <div class="header-actions">
-        <span class="text-muted me-3">
-            <?= htmlspecialchars($doctorInfo['Specialization']) ?>
-        </span>
-        <a href="doctor_dashboard.php" class="btn btn-sm btn-outline-primary me-2">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        <a href="doctor_logout.php" class="btn btn-sm btn-outline-danger me-2">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
-        <button onclick="printPage()" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-printer"></i> Print
-        </button>
+        <!-- Removed all header action buttons -->
     </div>
 </header>
 

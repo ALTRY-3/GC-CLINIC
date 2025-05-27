@@ -914,7 +914,7 @@ $month_count = $month_result->fetch_assoc()['count'];
     </ul>
 </aside>
 
-<!-- Updated header with doctor-specific information -->
+<!-- Updated header with simplified navigation -->
 <header class="header header-expanded" id="header">
     <div class="d-flex align-items-center">
         <button class="toggle-sidebar me-3" id="sidebarToggle">
@@ -924,15 +924,6 @@ $month_count = $month_result->fetch_assoc()['count'];
     </div>
     
     <div class="header-actions">
-        <span class="text-muted me-3">
-            <?= htmlspecialchars($doctorInfo['Specialization']) ?>
-        </span>
-        <a href="doctor_profile.php" class="btn btn-sm btn-outline-primary me-2">
-            <i class="bi bi-person-circle"></i> Profile
-        </a>
-        <a href="doctor_logout.php" class="btn btn-sm btn-outline-danger me-2">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
         <button onclick="printDashboard()" class="btn btn-sm btn-light no-print">
             <i class="bi bi-printer"></i> Print
         </button>

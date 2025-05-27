@@ -46,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             }
             
-            // Redirect to admin profile
-            header("Location: admin_profile.php");
+            // Redirect to admin dashboard
+            header("Location: admin_dashboard.php");
             exit();
         } else {
             $error_message = "Invalid password";

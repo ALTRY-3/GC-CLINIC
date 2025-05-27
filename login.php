@@ -104,8 +104,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         );
                     }
                     
-                    // Redirect directly to home page
-                    header("Location: studentHome.php");
+                    // Redirect directly to student dashboard
+                    header("Location: studentDashboard.php");
                     exit();
                 } else {
                     $error_message = "Invalid password. Please try again.";

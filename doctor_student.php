@@ -619,12 +619,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </div>
     
     <div class="header-actions">
-        <span class="text-muted me-3">
-            <?= htmlspecialchars($doctorInfo['Specialization']) ?>
-        </span>
-        <button onclick="printDashboard()" class="btn btn-sm btn-light no-print ms-2">
-            <i class="bi bi-printer"></i> Print
-        </button>
+        <!-- Removed specialization and print button -->
     </div>
   </header>
 

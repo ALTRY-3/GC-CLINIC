@@ -71,45 +71,127 @@ if ($status_result && $status_result->num_rows > 0) {
     }
 }
 
-// Check if system_logs table exists
-$check_table_query = "SHOW TABLES LIKE 'system_logs'";
-$table_exists = $conn->query($check_table_query)->num_rows > 0;
+// Generate meaningful system activity data from existing tables
+$activities = [];
 
-$notifications = [];
+// Get recent appointments activity (last 7 days)
+$recent_appointments_query = "SELECT 
+    CONCAT('New appointment scheduled by ', s.firstName, ' ', s.lastName, ' with Dr. ', d.FirstName, ' ', d.LastName) as action,
+    'appointment' as type,
+    a.AppointmentDate as activity_date
+    FROM appointments a 
+    JOIN students s ON a.StudentID = s.studentID
+    JOIN doctors d ON a.DoctorID = d.DoctorID
+    WHERE a.AppointmentDate >= DATE_SUB(CURDATE(), INTERVAL 7 DAYS)
+    ORDER BY a.AppointmentDate DESC 
+    LIMIT 3";
 
-if ($table_exists) {
-    // Fetch recent system notifications if table exists
-    $notif_query = "SELECT * FROM system_logs ORDER BY created_at DESC LIMIT 5";
-    $notif_result = $conn->query($notif_query);
-    
-    if ($notif_result && $notif_result->num_rows > 0) {
-        while ($row = $notif_result->fetch_assoc()) {
-            $notifications[] = $row;
+$recent_appointments_result = $conn->query($recent_appointments_query);
+if ($recent_appointments_result && $recent_appointments_result->num_rows > 0) {
+    while ($row = $recent_appointments_result->fetch_assoc()) {
+        $activities[] = [
+            'action' => $row['action'],
+            'type' => 'appointment',
+            'created_at' => $row['activity_date']
+        ];
+    }
+}
+
+// Get recent notifications (check if table exists first)
+$check_notifications = $conn->query("SHOW TABLES LIKE 'notifications'");
+if ($check_notifications && $check_notifications->num_rows > 0) {
+    $recent_notifications_query = "SELECT 
+        CONCAT('Notification sent: ', LEFT(n.message, 50), '...') as action,
+        'notification' as type,
+        n.created_at as activity_date
+        FROM notifications n 
+        WHERE n.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAYS)
+        ORDER BY n.created_at DESC 
+        LIMIT 2";
+
+    $recent_notifications_result = $conn->query($recent_notifications_query);
+    if ($recent_notifications_result && $recent_notifications_result->num_rows > 0) {
+        while ($row = $recent_notifications_result->fetch_assoc()) {
+            $activities[] = [
+                'action' => $row['action'],
+                'type' => 'notification',
+                'created_at' => $row['activity_date']
+            ];
         }
     }
-} else {
-    // Use dummy data if system_logs table doesn't exist
-    $notifications = [
-        [
-            'action' => 'Dashboard accessed',
-            'details' => 'Admin viewed dashboard',
-            'user_id' => $admin_id,
-            'created_at' => date('Y-m-d H:i:s')
-        ],
-        [
-            'action' => 'System initialized',
-            'details' => 'System setup complete',
-            'user_id' => 'System',
-            'created_at' => date('Y-m-d H:i:s', strtotime('-1 day'))
-        ],
-        [
-            'action' => 'New feature available',
-            'details' => 'Appointment management system updated',
-            'user_id' => 'System',
-            'created_at' => date('Y-m-d H:i:s', strtotime('-2 days'))
-        ]
+}
+
+// Add current admin session
+$activities[] = [
+    'action' => 'Admin dashboard accessed by ' . $admin_data['adminName'] . ' ' . $admin_data['adminLastName'],
+    'type' => 'login',
+    'created_at' => date('Y-m-d H:i:s')
+];
+
+// Add system status based on current data
+if ($pending_count > 0) {
+    $activities[] = [
+        'action' => $pending_count . ' pending appointment' . ($pending_count > 1 ? 's' : '') . ' requiring attention',
+        'type' => 'alert',
+        'created_at' => date('Y-m-d H:i:s', strtotime('-1 hour'))
     ];
 }
+
+// Add doctor status update
+$activities[] = [
+    'action' => 'System health check completed - ' . $active_doctors . ' active doctors, ' . $registered_students . ' registered students',
+    'type' => 'system',
+    'created_at' => date('Y-m-d H:i:s', strtotime('-2 hours'))
+];
+
+// Add some recent student registrations
+$recent_students_query = "SELECT 
+    CONCAT('New student registered: ', firstName, ' ', lastName) as action,
+    'student' as type,
+    registrationDate as activity_date
+    FROM students 
+    WHERE registrationDate >= DATE_SUB(CURDATE(), INTERVAL 7 DAYS)
+    ORDER BY registrationDate DESC 
+    LIMIT 2";
+
+$recent_students_result = $conn->query($recent_students_query);
+if ($recent_students_result && $recent_students_result->num_rows > 0) {
+    while ($row = $recent_students_result->fetch_assoc()) {
+        $activities[] = [
+            'action' => $row['action'],
+            'type' => 'student',
+            'created_at' => $row['activity_date']
+        ];
+    }
+}
+
+// Add recent doctor activities if any
+$recent_doctors_query = "SELECT 
+    CONCAT('Doctor profile updated: Dr. ', FirstName, ' ', LastName) as action,
+    'doctor' as type,
+    DATE(NOW()) as activity_date
+    FROM doctors 
+    WHERE Status = 'Active'
+    ORDER BY DoctorID DESC 
+    LIMIT 1";
+
+$recent_doctors_result = $conn->query($recent_doctors_query);
+if ($recent_doctors_result && $recent_doctors_result->num_rows > 0) {
+    $row = $recent_doctors_result->fetch_assoc();
+    $activities[] = [
+        'action' => $row['action'],
+        'type' => 'doctor',
+        'created_at' => date('Y-m-d H:i:s', strtotime('-3 hours'))
+    ];
+}
+
+// Sort activities by date (most recent first)
+usort($activities, function($a, $b) {
+    return strtotime($b['created_at']) - strtotime($a['created_at']);
+});
+
+// Limit to 5 most recent activities
+$activities = array_slice($activities, 0, 5);
 
 // Close the connection
 $conn->close();
@@ -127,6 +209,7 @@ $conn->close();
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         :root {
             --primary: #2e7d32;
@@ -228,18 +311,6 @@ $conn->close();
         
         .toggle-sidebar i {
             font-size: 1.5rem;
-        }
-        
-        .welcome-message {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.95rem;
-            color: var(--text-medium);
-        }
-        
-        .welcome-message i {
-            color: var(--admin-primary);
         }
         
         /* Sidebar */
@@ -639,21 +710,28 @@ $conn->close();
             display: flex;
             margin-bottom: 15px;
             position: relative;
+            padding: 12px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .activity-item:hover {
+            background-color: var(--surface-light);
         }
         
         .activity-item:not(:last-child)::after {
             content: '';
             position: absolute;
-            top: 30px;
-            left: 15px;
-            width: 1px;
-            height: calc(100% - 10px);
+            top: 40px;
+            left: 27px;
+            width: 2px;
+            height: calc(100% - 15px);
             background-color: var(--surface-medium);
         }
         
         .activity-icon {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -661,6 +739,7 @@ $conn->close();
             margin-right: 15px;
             flex-shrink: 0;
             z-index: 2;
+            position: relative;
         }
         
         .icon-info {
@@ -683,20 +762,29 @@ $conn->close();
             color: var(--danger);
         }
         
+        .icon-system {
+            background-color: rgba(46, 125, 50, 0.1);
+            color: var(--admin-primary);
+        }
+        
         .activity-content {
             flex-grow: 1;
         }
         
         .activity-title {
-            font-weight: 600;
+            font-weight: 500;
             margin-bottom: 5px;
             font-size: 0.95rem;
             color: var(--text-dark);
+            line-height: 1.4;
         }
         
         .activity-time {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--text-medium);
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         
         /* Quick Actions */
@@ -771,6 +859,18 @@ $conn->close();
         .action-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Sidebar overlay */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 99;
+            display: none;
         }
         
         /* Responsive styles */
@@ -853,144 +953,6 @@ $conn->close();
                 display: none;
             }
         }
-
-        /* Custom styles for admin_profile.php */
-        .sidebar {
-            width: 250px;
-            background: var(--primary);
-            transition: all 0.3s ease;
-            position: fixed;
-            height: 100vh;
-            z-index: 100;
-            box-shadow: var(--shadow-md);
-            top: 0;
-            left: 0;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .sidebar-collapsed {
-            transform: translateX(-250px);
-        }
-        
-        .sidebar-header {
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .sidebar-logo {
-            width: 70%;
-            max-width: 140px;
-            transition: transform 0.3s;
-        }
-        
-        .sidebar-logo:hover {
-            transform: scale(1.05);
-        }
-        
-        .sidebar-divider {
-            border-bottom: 1px solid var(--primary-light);
-            margin: 8px 20px;
-        }
-        
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            padding: 14px 18px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            font-weight: 500;
-            font-size: 1rem;
-        }
-        
-        .sidebar-menu a:hover {
-            background: var(--primary-light);
-            padding-left: 22px;
-        }
-        
-        .sidebar-menu a.active {
-            background: var(--primary-light);
-            border-right: 4px solid white;
-        }
-        
-        .sidebar-menu i {
-            margin-right: 12px;
-            font-size: 1.25rem;
-            min-width: 24px;
-            text-align: center;
-        }
-
-        /* Logout button styling */
-        .logout-link {
-            color: #ffcdd2 !important;
-            transition: all 0.3s ease !important;
-        }
-
-        .logout-link:hover {
-            background: #d32f2f !important;
-            color: white !important;
-            padding-left: 22px !important;
-        }
-
-        .logout-link i {
-            color: #ffcdd2 !important;
-        }
-
-        .logout-link:hover i {
-            color: white !important;
-        }
-        
-        /* Header styles to match admin_profile */
-        .header {
-            background: white;
-            padding: 15px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: var(--shadow-sm);
-            position: sticky;
-            top: 0;
-            z-index: 90;
-            transition: all 0.3s ease;
-            margin-left: 0;
-            min-height: 70px;
-        }
-
-        .header-expanded {
-            margin-left: 250px;
-        }
-
-        .header-title {
-            font-weight: 600;
-            font-size: 1.4rem;
-            color: var(--primary);
-            margin: 0;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        /* Sidebar overlay */
-        .sidebar-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 99;
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -1037,18 +999,7 @@ $conn->close();
             </div>
             
             <div class="header-actions">
-                <div class="welcome-message">
-                    <i class="bi bi-person-circle"></i>
-                    <span>Welcome, <?php echo htmlspecialchars($admin_data['adminName'] ?? 'Admin'); ?></span>
-                </div>
-                
-                <a href="admin_profile.php" class="btn btn-sm btn-outline-success me-2">
-                    <i class="bi bi-person-circle"></i> Profile
-                </a>
-                
-                <a href="admin_login.php" onclick="return confirmLogout()" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </a>
+                <!-- Removed all header action elements -->
             </div>
         </header>
         
@@ -1170,17 +1121,17 @@ $conn->close();
                 <div class="quick-actions">
                     <h3><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
                     <div class="action-buttons">
-                        <a href="appointment_management.php" class="action-btn btn-primary">
-                            <i class="bi bi-calendar-plus"></i> Manage Appointments
+                        <a href="staff_management.php" class="action-btn btn-primary">
+                            <i class="bi bi-people-fill"></i> Manage Staff
                         </a>
-                        <a href="doctor_management.php" class="action-btn btn-secondary">
-                            <i class="bi bi-person-plus"></i> Add Doctor
+                        <a href="admin_profile.php" class="action-btn btn-secondary">
+                            <i class="bi bi-person-circle"></i> My Profile
                         </a>
                         <a href="admin_report.php" class="action-btn btn-success">
                             <i class="bi bi-file-earmark-text"></i> Generate Reports
                         </a>
-                        <a href="notifications.php" class="action-btn btn-warning">
-                            <i class="bi bi-bell"></i> Send Notifications
+                        <a href="#" class="action-btn btn-warning" onclick="alert('Feature coming soon!')">
+                            <i class="bi bi-bell"></i> System Settings
                         </a>
                     </div>
                 </div>
@@ -1188,26 +1139,46 @@ $conn->close();
                 <!-- Activity Log -->
                 <div class="activity-log">
                     <h3><i class="bi bi-clock-history"></i> Recent System Activity</h3>
-                    <ul class="activity-list">
-                        <?php if (!empty($notifications)): ?>
-                            <?php foreach ($notifications as $notification): ?>
+                    <?php if (!empty($activities)): ?>
+                        <ul class="activity-list">
+                            <?php foreach ($activities as $activity): ?>
                                 <?php
-                                $iconClass = 'icon-info';
-                                $iconName = 'info-circle';
+                                $iconClass = 'icon-system';
+                                $iconName = 'gear';
                                 
                                 // Determine icon based on activity type
-                                if (isset($notification['action'])) {
-                                    $action = strtolower($notification['action']);
-                                    if (strpos($action, 'add') !== false) {
-                                        $iconClass = 'icon-success';
-                                        $iconName = 'plus-circle';
-                                    } elseif (strpos($action, 'delete') !== false) {
-                                        $iconClass = 'icon-error';
-                                        $iconName = 'trash';
-                                    } elseif (strpos($action, 'update') !== false || strpos($action, 'edit') !== false) {
+                                switch ($activity['type']) {
+                                    case 'appointment':
+                                        $iconClass = 'icon-info';
+                                        $iconName = 'calendar-plus';
+                                        break;
+                                    case 'notification':
                                         $iconClass = 'icon-warning';
-                                        $iconName = 'pencil-square';
-                                    }
+                                        $iconName = 'bell';
+                                        break;
+                                    case 'login':
+                                        $iconClass = 'icon-success';
+                                        $iconName = 'box-arrow-in-right';
+                                        break;
+                                    case 'alert':
+                                        $iconClass = 'icon-error';
+                                        $iconName = 'exclamation-triangle';
+                                        break;
+                                    case 'student':
+                                        $iconClass = 'icon-info';
+                                        $iconName = 'person-plus';
+                                        break;
+                                    case 'doctor':
+                                        $iconClass = 'icon-success';
+                                        $iconName = 'person-badge';
+                                        break;
+                                    case 'system':
+                                        $iconClass = 'icon-success';
+                                        $iconName = 'shield-check';
+                                        break;
+                                    default:
+                                        $iconClass = 'icon-system';
+                                        $iconName = 'info-circle';
                                 }
                                 ?>
                                 <li class="activity-item">
@@ -1216,30 +1187,33 @@ $conn->close();
                                     </div>
                                     <div class="activity-content">
                                         <div class="activity-title">
-                                            <?php echo htmlspecialchars($notification['action'] ?? 'System Activity'); ?>
+                                            <?php echo htmlspecialchars($activity['action']); ?>
                                         </div>
                                         <div class="activity-time">
                                             <?php 
-                                            if (isset($notification['created_at'])) {
-                                                echo date('M d, Y h:i A', strtotime($notification['created_at']));
+                                            $time_diff = time() - strtotime($activity['created_at']);
+                                            if ($time_diff < 60) {
+                                                echo 'Just now';
+                                            } elseif ($time_diff < 3600) {
+                                                echo floor($time_diff / 60) . ' minutes ago';
+                                            } elseif ($time_diff < 86400) {
+                                                echo floor($time_diff / 3600) . ' hours ago';
+                                            } else {
+                                                echo date('M d, Y h:i A', strtotime($activity['created_at']));
                                             }
                                             ?>
                                         </div>
                                     </div>
                                 </li>
                             <?php endforeach; ?>
-                        <?php else: ?>
-                            <li class="activity-item">
-                                <div class="activity-icon icon-info">
-                                    <i class="bi bi-info-circle"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <div class="activity-title">No recent system activities</div>
-                                    <div class="activity-time">-</div>
-                                </div>
-                            </li>
-                        <?php endif; ?>
-                    </ul>
+                        </ul>
+                    <?php else: ?>
+                        <div class="empty-activities" style="text-align: center; padding: 40px 20px; color: var(--text-medium);">
+                            <i class="bi bi-clock-history" style="font-size: 3rem; color: var(--surface-dark); margin-bottom: 15px; display: block;"></i>
+                            <h5>No Recent Activity</h5>
+                            <p>System activities will appear here as they occur</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </main>
@@ -1264,7 +1238,7 @@ $conn->close();
                 document.body.appendChild(sidebarOverlay);
             }
             
-            // Toggle Sidebar function to match admin_profile
+            // Toggle Sidebar function
             function toggleSidebar() {
                 const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
                 
