@@ -2,8 +2,8 @@
 // Start session
 session_start();
 
-// Include database connection
-include('db_connection.php');
+// Include database connection - FIXED
+include('config.php'); // Changed from db_connection.php to config.php
 
 // Add this function at the top of the file after the database connection
 function generateDoctorID($conn) {
@@ -1431,46 +1431,83 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             setInitialState();
         });
 
-        // Load timeslots for a doctor
+        // Load timeslots for a doctor - FIXED
         function loadTimeslots(doctorID) {
             fetch('manage_timeslot.php?doctorID=' + encodeURIComponent(doctorID))
-            .then r => r.json())
+            .then(response => response.json()) // FIXED: Added missing opening parenthesis
             .then(data => {
-                let html = '<table class="table table-sm"><thead><tr><th>Day</th><th>Start</th><th>End</th><th>Action</th></tr></thead><tbody>';
-                if (data.timeslots && data.timeslots.length) {
+                let html = '<div class="table-responsive"><table class="table table-sm table-striped"><thead class="table-dark"><tr><th>Day</th><th>Start Time</th><th>End Time</th><th>Action</th></tr></thead><tbody>';
+                
+                if (data.success && data.timeslots && data.timeslots.length > 0) {
                     data.timeslots.forEach(slot => {
+                        // Format time for display
+                        const startTime = new Date('1970-01-01T' + slot.StartTime).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                        });
+                        const endTime = new Date('1970-01-01T' + slot.EndTime).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                        });
+                        
                         html += `<tr>
-                            <td>${slot.AvailableDay}</td>
-                            <td>${slot.StartTime}</td>
-                            <td>${slot.EndTime}</td>
+                            <td><span class="badge bg-primary">${slot.AvailableDay}</span></td>
+                            <td>${startTime}</td>
+                            <td>${endTime}</td>
                             <td>
-                                <button class="btn btn-danger btn-sm" onclick="deleteTimeslot(${slot.SlotID}, '${doctorID}')">Delete</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteTimeslot(${slot.SlotID}, '${doctorID}')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
                             </td>
                         </tr>`;
                     });
                 } else {
-                    html += '<tr><td colspan="4" class="text-center">No timeslots found.</td></tr>';
+                    html += '<tr><td colspan="4" class="text-center text-muted py-3"><i class="bi bi-clock"></i> No timeslots found for this doctor.</td></tr>';
                 }
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
+                
                 document.getElementById('timeslotList').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading timeslots:', error);
+                document.getElementById('timeslotList').innerHTML = 
+                    '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Error loading timeslots: ' + error.message + '</div>';
             });
         }
 
-        // Delete timeslot
+        // Delete timeslot - FIXED
         function deleteTimeslot(slotID, doctorID) {
-            if (confirm('Delete this timeslot?')) {
+            if (confirm('Are you sure you want to delete this timeslot?')) {
                 fetch('manage_timeslot.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     body: 'delete=1&SlotID=' + encodeURIComponent(slotID)
                 })
-                .then r => r.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         loadTimeslots(doctorID);
+                        // Show success message
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                        alertDiv.innerHTML = '<i class="bi bi-check-circle"></i> Timeslot deleted successfully! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                        document.querySelector('#timeslotModal .modal-body').insertBefore(alertDiv, document.getElementById('addTimeslotForm'));
+                        
+                        // Auto-hide after 3 seconds
+                        setTimeout(() => {
+                            if (alertDiv && alertDiv.parentNode) {
+                                alertDiv.remove();
+                            }
+                        }, 3000);
                     } else {
-                        alert(data.error || 'Failed to delete timeslot.');
+                        alert('Error: ' + (data.error || 'Failed to delete timeslot'));
                     }
+                })
+                .catch(error => {
+                    console.error('Error deleting timeslot:', error);
+                    alert('Error deleting timeslot: ' + error.message);
                 });
             }
         }

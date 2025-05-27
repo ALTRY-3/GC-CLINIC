@@ -8,17 +8,8 @@ use PHPMailer\PHPMailer\Exception;
 date_default_timezone_set('Asia/Manila');
 error_log('Starting password reset process...');
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "medicalclinicnotify";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    error_log('Database connection failed: ' . $conn->connect_error);
-    die("Connection failed: " . $conn->connect_error);
-}
+// Use existing config.php instead of manual connection
+include 'config.php';
 
 $message = "";
 $message_type = "";
@@ -63,16 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $mail = new PHPMailer(true);
                     
                     try {
-                        // Enable verbose debug output
-                        $mail->SMTPDebug = 3;  // Enable verbose debug output
+                        // Disable debug for production, enable only for testing
+                        $mail->SMTPDebug = 0;  // Set to 0 for production, 3 for debugging
                         
-                        // Capture SMTP debug output
-                        $debugOutput = '';
-                        $mail->Debugoutput = function($str, $level) use (&$debugOutput) {
-                            $debugOutput .= "$str\n";
-                            error_log("PHPMailer Debug: $str");
-                        };
-
                         // Server settings
                         $mail->isSMTP();
                         $mail->Host = 'smtp.gmail.com';
@@ -92,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         );
                         
                         // Set timeout
-                        $mail->Timeout = 60; // Increased timeout
+                        $mail->Timeout = 60;
                         
                         $mail->setFrom('medicalclinicnotify@gmail.com', 'Medical Clinic Notify+');
                         $mail->addAddress($email);
@@ -123,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 .header {
                                     text-align: center;
                                     padding: 20px 0;
-                                    background: #011f4b;
+                                    background: #2e7d32;
                                     margin: -20px -20px 20px -20px;
                                 }
                                 .header h1 {
@@ -138,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 .button {
                                     display: inline-block;
                                     padding: 12px 30px;
-                                    background-color: #011f4b;
+                                    background-color: #2e7d32;
                                     color: #ffffff;
                                     text-decoration: none;
                                     border-radius: 5px;
@@ -146,12 +130,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     font-weight: 500;
                                 }
                                 .button:hover {
-                                    background-color: #024351;
+                                    background-color: #1b5e20;
                                 }
                                 .warning {
-                                    background-color: #fff3cd;
-                                    border: 1px solid #ffeeba;
-                                    color: #856404;
+                                    background-color: #e8f5e9;
+                                    border: 1px solid #c8e6c9;
+                                    color: #2e7d32;
                                     padding: 15px;
                                     border-radius: 5px;
                                     margin: 20px 0;
@@ -164,13 +148,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     border-top: 1px solid #eee;
                                     margin-top: 20px;
                                 }
-                                .logo {
-                                    max-width: 150px;
-                                    height: auto;
-                                    margin-bottom: 15px;
-                                }
                                 .expiry {
-                                    color: #dc3545;
+                                    color: #d32f2f;
                                     font-weight: 500;
                                 }
                             </style>
@@ -224,8 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $message_type = "success";
                     } catch (Exception $e) {
                         error_log("PHPMailer Error: " . $e->getMessage());
-                        error_log("Debug Output: " . $debugOutput);
-                        $message = "Failed to send reset email. Error: " . $e->getMessage();
+                        $message = "Failed to send reset email. Please try again later.";
                         $message_type = "error";
                     }
                 } else {
@@ -259,6 +237,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
                 error_log('Generated reset token for student, expires at: ' . $expires);
                 
+                // Check if students table has reset columns
+                $check_columns = $conn->query("SHOW COLUMNS FROM students LIKE 'reset_%'");
+                if ($check_columns->num_rows == 0) {
+                    // Add reset columns if they don't exist
+                    $alter_query = "ALTER TABLE students 
+                                   ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL,
+                                   ADD COLUMN reset_expires DATETIME DEFAULT NULL";
+                    $conn->query($alter_query);
+                }
+                
                 // Store token in database
                 $update_stmt = $conn->prepare("UPDATE students SET reset_token = ?, reset_expires = ? WHERE email = ?");
                 if (!$update_stmt) {
@@ -275,16 +263,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $mail = new PHPMailer(true);
                         
                         try {
-                            // Enable verbose debug output
-                            $mail->SMTPDebug = 3;  // Enable verbose debug output
-                            
-                            // Capture SMTP debug output
-                            $debugOutput = '';
-                            $mail->Debugoutput = function($str, $level) use (&$debugOutput) {
-                                $debugOutput .= "$str\n";
-                                error_log("PHPMailer Debug: $str");
-                            };
-
                             // Server settings
                             $mail->isSMTP();
                             $mail->Host = 'smtp.gmail.com';
@@ -293,8 +271,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $mail->Password = 'tufhhmtkgkekydvu';
                             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                             $mail->Port = 587;
-                            
-                            // Enable TLS explicitly
                             $mail->SMTPOptions = array(
                                 'ssl' => array(
                                     'verify_peer' => false,
@@ -302,14 +278,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     'allow_self_signed' => true
                                 )
                             );
-                            
-                            // Set timeout
-                            $mail->Timeout = 60; // Increased timeout
+                            $mail->Timeout = 60;
                             
                             $mail->setFrom('medicalclinicnotify@gmail.com', 'Medical Clinic Notify+');
                             $mail->addAddress($email);
                             $mail->isHTML(true);
                             $mail->Subject = 'Password Reset Request - Medical Clinic Notify+';
+                            
+                            // Same green-themed email template for students
                             $mail->Body = "
                             <!DOCTYPE html>
                             <html>
@@ -335,7 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     .header {
                                         text-align: center;
                                         padding: 20px 0;
-                                        background: #011f4b;
+                                        background: #2e7d32;
                                         margin: -20px -20px 20px -20px;
                                     }
                                     .header h1 {
@@ -350,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     .button {
                                         display: inline-block;
                                         padding: 12px 30px;
-                                        background-color: #011f4b;
+                                        background-color: #2e7d32;
                                         color: #ffffff;
                                         text-decoration: none;
                                         border-radius: 5px;
@@ -358,12 +334,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         font-weight: 500;
                                     }
                                     .button:hover {
-                                        background-color: #024351;
+                                        background-color: #1b5e20;
                                     }
                                     .warning {
-                                        background-color: #fff3cd;
-                                        border: 1px solid #ffeeba;
-                                        color: #856404;
+                                        background-color: #e8f5e9;
+                                        border: 1px solid #c8e6c9;
+                                        color: #2e7d32;
                                         padding: 15px;
                                         border-radius: 5px;
                                         margin: 20px 0;
@@ -376,13 +352,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         border-top: 1px solid #eee;
                                         margin-top: 20px;
                                     }
-                                    .logo {
-                                        max-width: 150px;
-                                        height: auto;
-                                        margin-bottom: 15px;
-                                    }
                                     .expiry {
-                                        color: #dc3545;
+                                        color: #d32f2f;
                                         font-weight: 500;
                                     }
                                 </style>
@@ -421,23 +392,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </body>
                             </html>";
 
-                            $mail->AltBody = "Medical Clinic Notify+ Password Reset\n\n" .
-                                           "Hello,\n\n" .
-                                           "We received a request to reset your password. To reset your password, please visit the following link:\n\n" .
-                                           $reset_link . "\n\n" .
-                                           "This link will expire in 1 hour.\n\n" .
-                                           "If you didn't request this password reset, please ignore this email.\n\n" .
-                                           "For security reasons, this link can only be used once.\n\n" .
-                                           "Best regards,\nMedical Clinic Notify+ Team";
-
                             $mail->send();
                             error_log('Reset email sent successfully to student');
                             $message = "Password reset instructions have been sent to your email.";
                             $message_type = "success";
                         } catch (Exception $e) {
                             error_log("PHPMailer Error: " . $e->getMessage());
-                            error_log("Debug Output: " . $debugOutput);
-                            $message = "Failed to send reset email. Error: " . $e->getMessage();
+                            $message = "Failed to send reset email. Please try again later.";
                             $message_type = "error";
                         }
                     } else {
@@ -482,7 +443,7 @@ $conn->close();
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at 60% 40%, #8dcef3 0%, #011f4b 100%);
+            background: radial-gradient(circle at 60% 40%, #60ad5e 0%, #2e7d32 100%);
             padding: 20px;
         }
         .forgot-container {
@@ -490,7 +451,7 @@ $conn->close();
             max-width: 420px;
             background: rgba(255, 255, 255, 0.98);
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(1, 31, 75, 0.18);
+            box-shadow: 0 8px 32px rgba(46, 125, 50, 0.18);
             padding: 38px 32px;
             animation: fadeIn 0.7s;
         }
@@ -503,7 +464,7 @@ $conn->close();
             margin-bottom: 30px;
         }
         .form-header h2 {
-            color: #011f4b;
+            color: #2e7d32;
             font-size: 24px;
             font-weight: 600;
             margin-bottom: 8px;
@@ -519,7 +480,7 @@ $conn->close();
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #011f4b;
+            color: #2e7d32;
             font-weight: 500;
             font-size: 14px;
         }
@@ -530,13 +491,13 @@ $conn->close();
             border-radius: 10px;
             font-size: 15px;
             transition: all 0.3s ease;
-            background: #f8f9fa;
+            background: #f5f7fa;
         }
         .form-group input:focus {
             outline: none;
-            border-color: #011f4b;
+            border-color: #2e7d32;
             background: #fff;
-            box-shadow: 0 0 0 4px rgba(1, 31, 75, 0.1);
+            box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.1);
         }
         .right-icon {
             position: absolute;
@@ -547,7 +508,7 @@ $conn->close();
             transition: color 0.3s ease;
         }
         .form-group input:focus + .right-icon {
-            color: #011f4b;
+            color: #2e7d32;
         }
         .message {
             padding: 12px;
@@ -574,7 +535,7 @@ $conn->close();
         .submit-btn {
             width: 100%;
             padding: 15px;
-            background: #011f4b;
+            background: #2e7d32;
             color: white;
             border: none;
             border-radius: 10px;
@@ -587,9 +548,9 @@ $conn->close();
             overflow: hidden;
         }
         .submit-btn:hover {
-            background: #024351;
+            background: #1b5e20;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(1, 31, 75, 0.2);
+            box-shadow: 0 5px 15px rgba(46, 125, 50, 0.3);
         }
         .submit-btn:active {
             transform: translateY(0);
@@ -627,13 +588,13 @@ $conn->close();
             color: #666;
         }
         .back-to-login a {
-            color: #011f4b;
+            color: #2e7d32;
             text-decoration: none;
             font-weight: 600;
             transition: color 0.2s ease;
         }
         .back-to-login a:hover {
-            color: #024351;
+            color: #1b5e20;
             text-decoration: underline;
         }
         @media (max-width: 480px) {
@@ -675,4 +636,4 @@ $conn->close();
         </div>
     </div>
 </body>
-</html> 
+</html>

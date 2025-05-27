@@ -1,21 +1,9 @@
 <?php
-date_default_timezone_set('Asia/Manila'); // or your local timezone
-error_log('Starting password reset process...');
-error_log('PHP time: ' . date('Y-m-d H:i:s'));
-
 session_start();
+include 'config.php'; // Use your existing config.php
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "medicalclinicnotify";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    error_log('Database connection failed: ' . $conn->connect_error);
-    die("Connection failed: " . $conn->connect_error);
-}
+date_default_timezone_set('Asia/Manila');
+error_log('Starting password reset process...');
 
 $message = "";
 $message_type = "";
@@ -46,32 +34,35 @@ if (isset($_GET['token'])) {
             $stmt->fetch();
             $valid_token = true;
             $user_type = 'admin';
+        }
+        $stmt->close();
+    }
+    
+    // If not found in admins, check students table
+    if (!$valid_token) {
+        error_log('Token not found in admins table, checking students table');
+        $stmt = $conn->prepare("SELECT email FROM students WHERE reset_token = ? AND reset_expires > ?");
+        if (!$stmt) {
+            error_log('Prepare failed for student token check: ' . $conn->error);
+            $message = "An error occurred. Please try again.";
+            $message_type = "error";
         } else {
-            error_log('Token not found in admins table, checking students table');
-            // If not found in admins, check students table
-            $stmt = $conn->prepare("SELECT email FROM students WHERE reset_token = ? AND reset_expires > ?");
-            if (!$stmt) {
-                error_log('Prepare failed for student token check: ' . $conn->error);
-                $message = "An error occurred. Please try again.";
-                $message_type = "error";
+            $stmt->bind_param("ss", $token, $current_time);
+            $stmt->execute();
+            $stmt->store_result();
+            
+            if ($stmt->num_rows > 0) {
+                error_log('Valid token found in students table');
+                $stmt->bind_result($email);
+                $stmt->fetch();
+                $valid_token = true;
+                $user_type = 'student';
             } else {
-                $stmt->bind_param("ss", $token, $current_time);
-                $stmt->execute();
-                $stmt->store_result();
-                
-                if ($stmt->num_rows > 0) {
-                    error_log('Valid token found in students table');
-                    $stmt->bind_result($email);
-                    $stmt->fetch();
-                    $valid_token = true;
-                    $user_type = 'student';
-                } else {
-                    error_log('Token not found in either table or has expired');
-                    $message = "Invalid or expired reset link. Please request a new one.";
-                    $message_type = "error";
-                }
-                $stmt->close();
+                error_log('Token not found in either table or has expired');
+                $message = "Invalid or expired reset link. Please request a new one.";
+                $message_type = "error";
             }
+            $stmt->close();
         }
     }
 } else {
@@ -111,9 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $valid_token) {
         $message = "Passwords do not match.";
         $message_type = "error";
     } else {
-        // Hash new password and update
-        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-        error_log('Password hashed successfully, attempting to update database');
+        // Since you don't use password hashing, store as plain text (not recommended for production)
+        error_log('Password validated successfully, attempting to update database');
         
         if ($user_type === 'admin') {
             $update_stmt = $conn->prepare("UPDATE admins SET password = ?, reset_token = NULL, reset_expires = NULL WHERE adminEmail = ?");
@@ -126,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $valid_token) {
             $message = "An error occurred while preparing the update statement.";
             $message_type = "error";
         } else {
-            $update_stmt->bind_param("ss", $hashed_password, $email);
+            $update_stmt->bind_param("ss", $new_password, $email);
             
             if ($update_stmt->execute()) {
                 if ($update_stmt->affected_rows > 0) {
@@ -174,7 +164,7 @@ $conn->close();
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at 60% 40%, #8dcef3 0%, #011f4b 100%);
+            background: radial-gradient(circle at 60% 40%, #60ad5e 0%, #2e7d32 100%);
             padding: 20px;
         }
         .reset-container {
@@ -182,7 +172,7 @@ $conn->close();
             max-width: 420px;
             background: rgba(255, 255, 255, 0.98);
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(1, 31, 75, 0.18);
+            box-shadow: 0 8px 32px rgba(46, 125, 50, 0.18);
             padding: 38px 32px;
             animation: fadeIn 0.7s;
         }
@@ -195,7 +185,7 @@ $conn->close();
             margin-bottom: 30px;
         }
         .form-header h2 {
-            color: #011f4b;
+            color: #2e7d32;
             font-size: 24px;
             font-weight: 600;
             margin-bottom: 8px;
@@ -211,7 +201,7 @@ $conn->close();
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #011f4b;
+            color: #2e7d32;
             font-weight: 500;
             font-size: 14px;
         }
@@ -222,13 +212,13 @@ $conn->close();
             border-radius: 10px;
             font-size: 15px;
             transition: all 0.3s ease;
-            background: #f8f9fa;
+            background: #f5f7fa;
         }
         .form-group input:focus {
             outline: none;
-            border-color: #011f4b;
+            border-color: #2e7d32;
             background: #fff;
-            box-shadow: 0 0 0 4px rgba(1, 31, 75, 0.1);
+            box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.1);
         }
         .right-icon {
             position: absolute;
@@ -240,8 +230,11 @@ $conn->close();
             transition: all 0.3s ease;
         }
         .right-icon:hover {
-            color: #011f4b;
+            color: #2e7d32;
             transform: scale(1.1);
+        }
+        .form-group input:focus + .right-icon {
+            color: #2e7d32;
         }
         .message {
             padding: 12px;
@@ -268,12 +261,12 @@ $conn->close();
         .password-requirements {
             margin-top: 15px;
             padding: 15px;
-            background: #f8f9fa;
+            background: #f5f7fa;
             border-radius: 10px;
             border: 1px solid #e0e0e0;
         }
         .password-requirements p {
-            color: #011f4b;
+            color: #2e7d32;
             font-weight: 500;
             font-size: 14px;
             margin-bottom: 10px;
@@ -310,7 +303,7 @@ $conn->close();
         .submit-btn {
             width: 100%;
             padding: 15px;
-            background: #011f4b;
+            background: #2e7d32;
             color: white;
             border: none;
             border-radius: 10px;
@@ -323,15 +316,15 @@ $conn->close();
             overflow: hidden;
         }
         .submit-btn:disabled {
-            background: #b0c4d8;
+            background: #c8e6c9;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
         .submit-btn:not(:disabled):hover {
-            background: #024351;
+            background: #1b5e20;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(1, 31, 75, 0.2);
+            box-shadow: 0 5px 15px rgba(46, 125, 50, 0.3);
         }
         .submit-btn:not(:disabled):active {
             transform: translateY(0);
@@ -369,13 +362,13 @@ $conn->close();
             color: #666;
         }
         .back-to-login a {
-            color: #011f4b;
+            color: #2e7d32;
             text-decoration: none;
             font-weight: 600;
             transition: color 0.2s ease;
         }
         .back-to-login a:hover {
-            color: #024351;
+            color: #1b5e20;
             text-decoration: underline;
         }
         @media (max-width: 480px) {
@@ -439,9 +432,13 @@ $conn->close();
             </form>
         <?php else: ?>
             <div class="back-to-login">
-                <p><a href="login.php">Back to Login</a></p>
+                <p><a href="forgot_password.php">Request new reset link</a></p>
             </div>
         <?php endif; ?>
+        
+        <div class="back-to-login">
+            <p>Remember your password? <a href="login.php">Login here</a></p>
+        </div>
     </div>
 
     <script>
@@ -525,7 +522,7 @@ $conn->close();
                 valid = false;
             }
 
-            // Check special character
+            // Check special character - FIXED
             if (/[!@#$%^&*()\-_=+{};:,<.>]/.test(value)) {
                 requirements.special.classList.add('valid');
                 requirements.special.classList.remove('invalid');
@@ -552,8 +549,12 @@ $conn->close();
             submitBtn.disabled = !valid;
         }
 
+        // Add event listeners
         password.addEventListener('input', validatePassword);
         confirmPassword.addEventListener('input', validatePassword);
+        
+        // Initial validation
+        validatePassword();
     </script>
 </body>
-</html> 
+</html>

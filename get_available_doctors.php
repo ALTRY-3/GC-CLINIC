@@ -38,18 +38,22 @@ try {
         }
     }
 
-    // Get available timeslots for the selected day
+    // Only show slots that are not already booked for this date
     $query = "SELECT d.DoctorID, d.FirstName, d.LastName, d.Specialization, d.ProfilePhoto, t.SlotID, t.StartTime, t.EndTime
               FROM doctors d
               JOIN timeslots t ON d.DoctorID = t.DoctorID
-              WHERE t.AvailableDay = ? AND t.IsAvailable = 1";
+              WHERE t.AvailableDay = ? 
+                AND t.IsAvailable = 1
+                AND t.SlotID NOT IN (
+                    SELECT SlotID FROM appointments 
+                    WHERE AppointmentDate = ? AND statusID IN (1,2,3)
+                )";
 
     $stmt = $conn->prepare($query);
     if (!$stmt) {
         throw new Exception('Query preparation failed: ' . $conn->error);
     }
-
-    $stmt->bind_param("s", $dayOfWeek);
+    $stmt->bind_param("ss", $dayOfWeek, $date);
     if (!$stmt->execute()) {
         throw new Exception('Query execution failed: ' . $stmt->error);
     }

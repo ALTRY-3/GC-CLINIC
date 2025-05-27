@@ -914,7 +914,7 @@ $month_count = $month_result->fetch_assoc()['count'];
     </ul>
 </aside>
 
-<!-- Updated header with simplified navigation -->
+<!-- Updated header with simplified information -->
 <header class="header header-expanded" id="header">
     <div class="d-flex align-items-center">
         <button class="toggle-sidebar me-3" id="sidebarToggle">
