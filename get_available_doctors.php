@@ -39,9 +39,9 @@ try {
     }
 
     // Get available timeslots for the selected day
-    $query = "SELECT t.SlotID, t.DoctorID, t.AvailableDay, t.StartTime, t.EndTime, d.FirstName, d.LastName, d.Specialization
-              FROM timeslots t
-              INNER JOIN doctors d ON t.DoctorID = d.DoctorID
+    $query = "SELECT d.DoctorID, d.FirstName, d.LastName, d.Specialization, d.ProfilePhoto, t.SlotID, t.StartTime, t.EndTime
+              FROM doctors d
+              JOIN timeslots t ON d.DoctorID = t.DoctorID
               WHERE t.AvailableDay = ? AND t.IsAvailable = 1";
 
     $stmt = $conn->prepare($query);
@@ -59,7 +59,15 @@ try {
     
     while ($row = $result->fetch_assoc()) {
         $row['ScheduleTime'] = $row['StartTime'] . ' - ' . $row['EndTime'];
-        $doctors[] = $row;
+        $doctors[] = [
+            'DoctorID' => $row['DoctorID'],
+            'FirstName' => $row['FirstName'],
+            'LastName' => $row['LastName'],
+            'Specialization' => $row['Specialization'],
+            'ProfilePhoto' => $row['ProfilePhoto'],
+            'SlotID' => $row['SlotID'],
+            'ScheduleTime' => $row['StartTime'] . '-' . $row['EndTime'],
+        ];
     }
 
     $debug['doctors_count'] = count($doctors);

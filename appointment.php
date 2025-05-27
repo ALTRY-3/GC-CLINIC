@@ -951,8 +951,14 @@ $notifications = $notificationStmt->get_result();
                         </div>
                         <div class="mb-3">
                             <label for="modalAppointmentReason" class="form-label">Reason for Appointment</label>
-                            <textarea class="form-control" id="modalAppointmentReason" rows="3" required></textarea>
-                            <div class="invalid-feedback">Please enter a reason for your appointment.</div>
+                            <select class="form-control" id="modalAppointmentReason" required>
+                                <option value="">Select a service</option>
+                                <option value="Dental Consultation & Treatment">Dental Consultation & Treatment</option>
+                                <option value="Oral Prophylaxis (Cleaning)">Oral Prophylaxis (Cleaning)</option>
+                                <option value="Simple Tooth Extraction">Simple Tooth Extraction</option>
+                                <option value="Dental Care Lectures">Dental Care Lectures</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a service for your appointment.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1102,8 +1108,11 @@ $notifications = $notificationStmt->get_result();
                     },
                     body: 'date=' + selectedDate
                 })
-                .then(response => response.json())
-                .then(data => {
+                .then(response => response.text())
+                .then(text => {
+                    console.log(text); // See what is returned
+                    const data = JSON.parse(text);
+                    
                     // Hide loading state
                     loadingState.style.display = 'none';
                     
@@ -1146,11 +1155,15 @@ $notifications = $notificationStmt->get_result();
                         doctorCard.innerHTML = `
                             <div class="doctor-header">
                                 <div class="doctor-avatar">
-                                    <i class="bi bi-person"></i>
+                                    ${
+                                        doctor.ProfilePhoto && doctor.ProfilePhoto.trim() !== ""
+                                        ? `<img src="${doctor.ProfilePhoto}" alt="Doctor Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+                                        : `<i class="bi bi-person"></i>`
+                                    }
                                 </div>
                                 <div class="doctor-info">
                                     <h3>Dr. ${doctor.FirstName} ${doctor.LastName}</h3>
-                                    <div class="doctor-specialty">${doctor.Specialization}</div>
+                                    <div class="doctor-specialty">${doctor.Specialization || ''}</div>
                                 </div>
                             </div>
                             <div class="doctor-body">

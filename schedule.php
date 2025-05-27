@@ -1074,7 +1074,15 @@ $result = $stmt->get_result();
                         <input type="hidden" name="appointment_id" id="modalAppointmentId">
                         <div class="mb-3">
                             <label for="cancellationReason" class="form-label">Reason for cancellation <span class="text-danger">*</span></label>
-                            <textarea name="cancellation_reason" id="cancellationReason" class="form-control" rows="4" required></textarea>
+                            <select name="cancellation_reason" id="cancellationReason" class="form-control" required>
+                                <option value="">Select a reason</option>
+                                <option value="Feeling Unwell / Sick">Feeling Unwell / Sick</option>
+                                <option value="Emergency Situation">Emergency Situation</option>
+                                <option value="Transportation Issue">Transportation Issue</option>
+                                <option value="Personal Reason">Personal Reason</option>
+                                <option value="Others">Others</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a reason for cancellation.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
