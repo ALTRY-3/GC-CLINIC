@@ -736,7 +736,7 @@ $patientStmt->close();
   <!-- Sidebar overlay -->
   <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-  <!-- Main content with exact same structure as doctor_profile.php -->
+  <!-- Main content with complete UI -->
   <main class="main-content main-expanded" id="mainContent">
     <div class="container-fluid">
         <!-- Print header (only visible when printing) -->
@@ -754,33 +754,327 @@ $patientStmt->close();
             <p>Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?> - Your comprehensive appointment and performance reports</p>
         </div>
 
-        <!-- Keep all your existing content sections exactly as they are -->
         <!-- Statistics Cards -->
         <div class="row mb-4">
-            <!-- Your existing statistics cards -->
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-total mx-auto">
+                            <i class="bi bi-calendar-event"></i>
+                        </div>
+                        <h3 class="dash-count"><?= $totalAppointments ?></h3>
+                        <p class="text-muted mb-0">Total Appointments</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-completed mx-auto">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <h3 class="dash-count"><?= $completedAppointments ?></h3>
+                        <p class="text-muted mb-0">Completed</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-cancelled mx-auto">
+                            <i class="bi bi-x-circle"></i>
+                        </div>
+                        <h3 class="dash-count"><?= $cancelledAppointments ?></h3>
+                        <p class="text-muted mb-0">Cancelled</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-upcoming mx-auto">
+                            <i class="bi bi-calendar-plus"></i>
+                        </div>
+                        <h3 class="dash-count"><?= $pendingAppointments + $approvedAppointments ?></h3>
+                        <p class="text-muted mb-0">Upcoming</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patient Statistics -->
+        <div class="row mb-4">
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-total mx-auto">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <h3 class="dash-count"><?= $patientStats['unique_patients'] ?? 0 ?></h3>
+                        <p class="text-muted mb-0">Unique Patients</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-completed mx-auto">
+                            <i class="bi bi-percent"></i>
+                        </div>
+                        <h3 class="dash-count"><?= round($patientStats['completion_rate'] ?? 0) ?>%</h3>
+                        <p class="text-muted mb-0">Completion Rate</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="icon-container bg-blocked mx-auto">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                        <h3 class="dash-count"><?= $blockedDatesCount ?></h3>
+                        <p class="text-muted mb-0">Blocked Dates</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Monthly Trends -->
         <div class="row mb-4">
-            <!-- Your existing monthly trends table -->
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Monthly Appointment Trends (Last 6 Months)</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($trendsResult->num_rows > 0): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th>Total Appointments</th>
+                                            <th>Completed</th>
+                                            <th>Cancelled</th>
+                                            <th>Success Rate</th>
+                                            <th>Visual Progress</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php while ($trend = $trendsResult->fetch_assoc()): ?>
+                                            <?php 
+                                            $successRate = $trend['total'] > 0 ? ($trend['completed'] / $trend['total']) * 100 : 0;
+                                            $monthName = date('F Y', strtotime($trend['month'] . '-01'));
+                                            ?>
+                                            <tr>
+                                                <td><strong><?= $monthName ?></strong></td>
+                                                <td><?= $trend['total'] ?></td>
+                                                <td><span class="status-badge status-completed"><?= $trend['completed'] ?></span></td>
+                                                <td><span class="status-badge status-cancelled"><?= $trend['cancelled'] ?></span></td>
+                                                <td><?= round($successRate) ?>%</td>
+                                                <td>
+                                                    <div class="reason-progress">
+                                                        <div class="progress-bar bg-success" style="width: <?= $successRate ?>%"></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center py-4">
+                                <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No appointment data available for the last 6 months</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="row">
             <!-- Recent Appointments -->
             <div class="col-lg-6 mb-4">
-                <!-- Your existing recent appointments table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Recent Appointments</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($recentResult->num_rows > 0): ?>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient</th>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php while ($recent = $recentResult->fetch_assoc()): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($recent['FirstName'] . ' ' . $recent['LastName']) ?></td>
+                                                <td><?= date('M d, Y', strtotime($recent['AppointmentDate'])) ?></td>
+                                                <td>
+                                                    <?php
+                                                    $statusClass = '';
+                                                    switch ($recent['statusID']) {
+                                                        case 1: $statusClass = 'status-pending'; break;
+                                                        case 2: $statusClass = 'status-approved'; break;
+                                                        case 3: $statusClass = 'status-completed'; break;
+                                                        case 4: $statusClass = 'status-cancelled'; break;
+                                                        case 5: $statusClass = 'status-requested'; break;
+                                                    }
+                                                    ?>
+                                                    <span class="status-badge <?= $statusClass ?>">
+                                                        <?= htmlspecialchars($recent['status_name']) ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-x text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2">No recent appointments</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
             
             <!-- Recently Added Blocked Dates -->
             <div class="col-lg-6 mb-4">
-                <!-- Your existing blocked dates table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-calendar-x me-2"></i>Recent Blocked Dates</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($recentBlockedResult->num_rows > 0): ?>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Blocked Date</th>
+                                            <th>Reason</th>
+                                            <th>Added On</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php while ($blocked = $recentBlockedResult->fetch_assoc()): ?>
+                                            <tr>
+                                                <td><?= date('M d, Y', strtotime($blocked['BlockedDate'])) ?></td>
+                                                <td><?= htmlspecialchars($blocked['Reason']) ?></td>
+                                                <td><?= date('M d, Y', strtotime($blocked['CreatedAt'])) ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-check text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2">No blocked dates</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Most Common Cancellation Reasons -->
         <div class="row">
             <div class="col-12 mb-4">
-                <!-- Your existing cancellation reasons table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Most Common Cancellation Reasons</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($commonCancellationsResult->num_rows > 0): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Reason</th>
+                                            <th>Count</th>
+                                            <th>Frequency</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
+                                        $maxCount = 0;
+                                        $reasons = [];
+                                        while ($reason = $commonCancellationsResult->fetch_assoc()) {
+                                            $reasons[] = $reason;
+                                            if ($reason['count'] > $maxCount) $maxCount = $reason['count'];
+                                        }
+                                        
+                                        foreach ($reasons as $reason): 
+                                            $percentage = $maxCount > 0 ? ($reason['count'] / $maxCount) * 100 : 0;
+                                        ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($reason['Reason']) ?></td>
+                                                <td><span class="status-badge status-cancelled"><?= $reason['count'] ?></span></td>
+                                                <td>
+                                                    <div class="reason-progress">
+                                                        <div class="progress-bar bg-danger" style="width: <?= $percentage ?>%"></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center py-4">
+                                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">Great! No cancellations recorded</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <a href="doctor_student.php" class="btn btn-outline-primary w-100 p-3">
+                                    <i class="bi bi-calendar-check d-block mb-2" style="font-size: 1.5rem;"></i>
+                                    View All Appointments
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <a href="student_viewer.php" class="btn btn-outline-primary w-100 p-3">
+                                    <i class="bi bi-people d-block mb-2" style="font-size: 1.5rem;"></i>
+                                    View All Patients
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <a href="doctor_schedule.php" class="btn btn-outline-primary w-100 p-3">
+                                    <i class="bi bi-calendar3 d-block mb-2" style="font-size: 1.5rem;"></i>
+                                    Manage Schedule
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button onclick="printPage()" class="btn btn-outline-primary w-100 p-3">
+                                    <i class="bi bi-printer d-block mb-2" style="font-size: 1.5rem;"></i>
+                                    Print Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -802,7 +1096,7 @@ $patientStmt->close();
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   
-  <!-- Exact same JavaScript as doctor_profile.php -->
+  <!-- JavaScript with added logout confirmation -->
   <script>
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
@@ -896,6 +1190,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }, 1000);
         }, 300);
+    }
+
+    // Logout confirmation
+    window.confirmLogout = function() {
+        return confirm('Are you sure you want to logout?');
     }
     
     // Set initial state
