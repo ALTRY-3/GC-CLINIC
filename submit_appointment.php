@@ -1,156 +1,207 @@
 <?php
+session_start();
 include 'config.php';
-include 'send_appointment_notification.php';
-require_once 'session_helper.php';
 
-// Validate session
-if (!validateSession()) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Session expired or invalid. Please login again.']);
+header('Content-Type: application/json');
+
+// Check if student is logged in
+if (!isset($_SESSION['studentID'])) {
+    echo json_encode(['success' => false, 'message' => 'User not logged in']);
     exit;
 }
 
-// Get and validate student ID from session
-$studentID = getStudentID();
-if (empty($studentID)) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Invalid session. Please login again.']);
+$studentID = $_SESSION['studentID'];
+
+// Get JSON input
+$input = json_decode(file_get_contents('php://input'), true);
+
+if (!$input) {
+    echo json_encode(['success' => false, 'message' => 'Invalid request data']);
     exit;
 }
 
-// Verify student exists in database
-$checkStudentQuery = "SELECT StudentID FROM students WHERE StudentID = ?";
-$checkStudentStmt = $conn->prepare($checkStudentQuery);
-$checkStudentStmt->bind_param("s", $studentID);
-$checkStudentStmt->execute();
-$studentResult = $checkStudentStmt->get_result();
+$doctorID = $input['doctorID'] ?? '';
+$appointmentDate = $input['appointmentDate'] ?? '';
+$appointmentTime = $input['appointmentTime'] ?? '';
+$reason = $input['reason'] ?? '';
 
-if ($studentResult->num_rows === 0) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Student not found. Please login again.']);
+// Validate required fields
+if (empty($doctorID) || empty($appointmentDate) || empty($appointmentTime) || empty($reason)) {
+    echo json_encode(['success' => false, 'message' => 'All fields are required']);
     exit;
 }
 
-// Check if request is AJAX and has JSON content
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+// Validate date format and ensure it's not in the past
+$dateObj = DateTime::createFromFormat('Y-m-d', $appointmentDate);
+if (!$dateObj || $dateObj->format('Y-m-d') !== $appointmentDate) {
+    echo json_encode(['success' => false, 'message' => 'Invalid date format']);
+    exit;
+}
+
+$today = new DateTime();
+$today->setTime(0, 0, 0);
+if ($dateObj < $today) {
+    echo json_encode(['success' => false, 'message' => 'Cannot book appointments for past dates']);
+    exit;
+}
+
+// Get the day of the week
+$dayOfWeek = $dateObj->format('l');
+
+try {
+    // Start transaction
+    $conn->autocommit(false);
+
+    // UPDATED: Check if doctor has blocked this date
+    $blockCheck = "SELECT BlockID, Reason FROM blocked_dates WHERE DoctorID = ? AND BlockedDate = ?";
+    $blockStmt = $conn->prepare($blockCheck);
+    $blockStmt->bind_param("ss", $doctorID, $appointmentDate);
+    $blockStmt->execute();
+    $blockResult = $blockStmt->get_result();
     
-    // Get JSON data
-    $json = file_get_contents('php://input');
-    $data = json_decode($json, true);
+    if ($blockResult->num_rows > 0) {
+        $blockData = $blockResult->fetch_assoc();
+        $reason = $blockData['Reason'] ? $blockData['Reason'] : 'unavailable';
+        $conn->rollback();
+        echo json_encode([
+            'success' => false, 
+            'message' => "Sorry, Dr. is not available on " . $dateObj->format('F d, Y') . " (Reason: $reason). Please select another date."
+        ]);
+        exit;
+    }
+    $blockStmt->close();
 
-    // Validate input data
-    if (!isset($data['doctorID'], $data['appointmentDate'], $data['appointmentTime'], $data['reason']) || 
-        empty($data['doctorID']) || empty($data['appointmentDate']) || 
-        empty($data['appointmentTime']) || empty($data['reason'])) {
-        
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'All fields are required']);
+    // Parse the time range to get start and end times
+    $timeRange = explode('-', $appointmentTime);
+    if (count($timeRange) !== 2) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Invalid time format']);
         exit;
     }
 
-    $doctorID = $data['doctorID'];
-    $appointmentDate = $data['appointmentDate'];
-    $appointmentTime = $data['appointmentTime'];
-    $reason = trim($data['reason']);
-    $statusID = 1; // Pending status
+    $startTime = trim($timeRange[0]);
+    $endTime = trim($timeRange[1]);
 
-    // Start transaction
-    $conn->begin_transaction();
+    // Find the corresponding time slot
+    $slotQuery = "SELECT SlotID FROM timeslots 
+                  WHERE DoctorID = ? 
+                    AND AvailableDay = ? 
+                    AND StartTime = ? 
+                    AND EndTime = ? 
+                    AND IsAvailable = 1";
+    
+    $slotStmt = $conn->prepare($slotQuery);
+    $slotStmt->bind_param("ssss", $doctorID, $dayOfWeek, $startTime, $endTime);
+    $slotStmt->execute();
+    $slotResult = $slotStmt->get_result();
 
-    try {
-        // Check if student already has a pending appointment for the same date
-        $checkQuery = "SELECT COUNT(*) as count FROM appointments 
-                      WHERE studentID = ? AND appointmentDate = ? AND statusID = ?";
-        $checkStmt = $conn->prepare($checkQuery);
-        $checkStmt->bind_param("ssi", $studentID, $appointmentDate, $statusID);
-        $checkStmt->execute();
-        $checkResult = $checkStmt->get_result();
-        $count = $checkResult->fetch_assoc()['count'];
-
-        if ($count > 0) {
-            throw new Exception('You already have a pending appointment for this date.');
-        }
-
-        // Get the SlotID based on the appointment time and doctor
-        $slotQuery = "SELECT SlotID FROM timeslots 
-                     WHERE DoctorID = ? AND StartTime = ? AND AvailableDay = DAYNAME(?)";
-        $slotStmt = $conn->prepare($slotQuery);
-        $slotStmt->bind_param("sss", $doctorID, $appointmentTime, $appointmentDate);
-        $slotStmt->execute();
-        $slotResult = $slotStmt->get_result();
-        
-        if ($slotResult->num_rows === 0) {
-            throw new Exception('Selected time slot is no longer available.');
-        }
-        
-        $slot = $slotResult->fetch_assoc();
-        $slotID = $slot['SlotID'];
-
-        // Check if slot is already booked for the same date
-        $checkSlotQuery = "SELECT COUNT(*) as booked FROM appointments 
-                          WHERE appointmentDate = ? AND slotID = ? AND statusID IN (1, 2)"; // Pending or Approved
-        $checkSlotStmt = $conn->prepare($checkSlotQuery);
-        $checkSlotStmt->bind_param("si", $appointmentDate, $slotID);
-        $checkSlotStmt->execute();
-        $slotCheckResult = $checkSlotStmt->get_result();
-        
-        if ($slotCheckResult->fetch_assoc()['booked'] > 0) {
-            throw new Exception('This time slot has already been booked. Please select another time.');
-        }
-
-        // Insert appointment
-        $insertQuery = "INSERT INTO appointments (studentID, doctorID, appointmentDate, slotID, reason, statusID) 
-                       VALUES (?, ?, ?, ?, ?, ?)";
-        $insertStmt = $conn->prepare($insertQuery);
-        $insertStmt->bind_param("sssisi", $studentID, $doctorID, $appointmentDate, $slotID, $reason, $statusID);
-
-        if (!$insertStmt->execute()) {
-            throw new Exception('Failed to submit appointment: ' . $insertStmt->error);
-        }
-
-        $appointmentID = $insertStmt->insert_id;
-        
-        // Get doctor's name for notification
-        $doctorQuery = "SELECT FirstName, LastName FROM doctors WHERE doctorID = ?";
-        $doctorStmt = $conn->prepare($doctorQuery);
-        $doctorStmt->bind_param("s", $doctorID);
-        $doctorStmt->execute();
-        $doctorResult = $doctorStmt->get_result();
-        $doctor = $doctorResult->fetch_assoc();
-        
-        // Create notification message
-        $message = "Your appointment request with Dr. " . $doctor['FirstName'] . " " . $doctor['LastName'] . 
-                  " on " . date('F j, Y', strtotime($appointmentDate)) . 
-                  " at " . date('g:i A', strtotime($appointmentTime)) . 
-                  " has been submitted and is pending approval.";
-        
-        // Insert notification directly
-        $notifQuery = "INSERT INTO notifications (studentID, appointmentID, message, is_read, created_at) 
-                      VALUES (?, ?, ?, 0, NOW())";
-        $notifStmt = $conn->prepare($notifQuery);
-        $notifStmt->bind_param("sis", $studentID, $appointmentID, $message);
-        
-        if (!$notifStmt->execute()) {
-            throw new Exception('Failed to create notification: ' . $notifStmt->error);
-        }
-        
-        // Commit the transaction
-        $conn->commit();
-        
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => true, 
-            'message' => 'Appointment submitted successfully! Please wait for approval.'
-        ]);
-
-    } catch (Exception $e) {
+    if ($slotResult->num_rows === 0) {
         $conn->rollback();
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => 'Selected time slot is not available']);
+        exit;
     }
-} else {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+
+    $slotData = $slotResult->fetch_assoc();
+    $slotID = $slotData['SlotID'];
+    $slotStmt->close();
+
+    // Check if slot is already booked for this date
+    $existingQuery = "SELECT AppointmentID FROM appointments 
+                      WHERE DoctorID = ? 
+                        AND SlotID = ? 
+                        AND AppointmentDate = ? 
+                        AND statusID IN (1, 2, 3)";
+    
+    $existingStmt = $conn->prepare($existingQuery);
+    $existingStmt->bind_param("sis", $doctorID, $slotID, $appointmentDate);
+    $existingStmt->execute();
+    $existingResult = $existingStmt->get_result();
+
+    if ($existingResult->num_rows > 0) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'This time slot is already booked. Please choose another time.']);
+        exit;
+    }
+    $existingStmt->close();
+
+    // Check if student already has an appointment on this date
+    $studentQuery = "SELECT AppointmentID FROM appointments 
+                     WHERE StudentID = ? 
+                       AND AppointmentDate = ? 
+                       AND statusID IN (1, 2, 3)";
+    
+    $studentStmt = $conn->prepare($studentQuery);
+    $studentStmt->bind_param("ss", $studentID, $appointmentDate);
+    $studentStmt->execute();
+    $studentResult = $studentStmt->get_result();
+
+    if ($studentResult->num_rows > 0) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'You already have an appointment booked for this date.']);
+        exit;
+    }
+    $studentStmt->close();
+
+    // Insert the appointment with status 1 (Pending)
+    $insertQuery = "INSERT INTO appointments (StudentID, DoctorID, SlotID, AppointmentDate, Reason, statusID) 
+                    VALUES (?, ?, ?, ?, ?, 1)";
+    
+    $insertStmt = $conn->prepare($insertQuery);
+    $insertStmt->bind_param("ssiss", $studentID, $doctorID, $slotID, $appointmentDate, $reason);
+
+    if (!$insertStmt->execute()) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Failed to book appointment. Please try again.']);
+        exit;
+    }
+
+    $appointmentID = $conn->insert_id;
+    $insertStmt->close();
+
+    // Get doctor and student information for notification
+    $doctorQuery = "SELECT FirstName, LastName FROM doctors WHERE DoctorID = ?";
+    $doctorStmt = $conn->prepare($doctorQuery);
+    $doctorStmt->bind_param("s", $doctorID);
+    $doctorStmt->execute();
+    $doctorResult = $doctorStmt->get_result();
+    $doctorInfo = $doctorResult->fetch_assoc();
+    $doctorStmt->close();
+
+    $studentQuery = "SELECT firstName, lastName FROM students WHERE studentID = ?";
+    $studentStmt = $conn->prepare($studentQuery);
+    $studentStmt->bind_param("s", $studentID);
+    $studentStmt->execute();
+    $studentResult = $studentStmt->get_result();
+    $studentInfo = $studentResult->fetch_assoc();
+    $studentStmt->close();
+
+    // Create notification for the student
+    $notificationMessage = "Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
+                          " on " . $dateObj->format('F d, Y') . " has been submitted and is pending approval.";
+    
+    $notifQuery = "INSERT INTO notifications (studentID, message, is_read, created_at) VALUES (?, ?, 0, NOW())";
+    $notifStmt = $conn->prepare($notifQuery);
+    $notifStmt->bind_param("ss", $studentID, $notificationMessage);
+    $notifStmt->execute();
+    $notifStmt->close();
+
+    // Commit transaction
+    $conn->commit();
+
+    echo json_encode([
+        'success' => true, 
+        'message' => "Appointment successfully booked with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
+                    " on " . $dateObj->format('F d, Y') . " from " . date('g:i A', strtotime($startTime)) . 
+                    " to " . date('g:i A', strtotime($endTime)) . ". Your appointment is pending approval.",
+        'appointmentID' => $appointmentID
+    ]);
+
+} catch (Exception $e) {
+    $conn->rollback();
+    error_log("Error in submit_appointment.php: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Database error occurred. Please try again.']);
 }
-?> 
+
+$conn->autocommit(true);
+$conn->close();
+?>

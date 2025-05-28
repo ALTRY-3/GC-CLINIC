@@ -411,8 +411,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             
             <div class="back-link">
                 <a href="index.php">
-                    <i class="bi bi-arrow-left"></i>
-                    <span>Back to Home</span>
                 </a>
             </div>
         </div>

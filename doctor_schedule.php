@@ -30,7 +30,7 @@ $doctorInfo = $doctor_verify_result->fetch_assoc();
 $message = '';
 $alertType = '';
 
-// Add available time slots
+// FIXED: Add available time slots
 if (isset($_POST['add_timeslot'])) {
     $day = $_POST['day'] ?? '';
     $startTime = $_POST['start_time'] ?? '';
@@ -50,6 +50,7 @@ if (isset($_POST['add_timeslot'])) {
                 $message = "This time slot already exists for the selected day.";
                 $alertType = "warning";
             } else {
+                // Insert new time slot
                 $sql = "INSERT INTO timeslots (DoctorID, AvailableDay, StartTime, EndTime, IsAvailable) 
                         VALUES (?, ?, ?, ?, 1)";
                 $stmt = $conn->prepare($sql);
@@ -76,7 +77,7 @@ if (isset($_POST['add_timeslot'])) {
 }
 
 // Block off dates - ONLY for this doctor
-if (isset($_POST['block_date'])) {
+if (isset($_POST['block_date_submit'])) {
     $blockDate = $_POST['block_date'] ?? '';
     $reason = $_POST['block_reason'] ?? '';
 
@@ -119,9 +120,9 @@ if (isset($_POST['block_date'])) {
     }
 }
 
-// Remove time slot - ONLY for this doctor
+// FIXED: Remove time slot - ONLY for this doctor
 if (isset($_GET['remove_slot']) && is_numeric($_GET['remove_slot'])) {
-    $slotID = $_GET['remove_slot'];
+    $slotID = (int)$_GET['remove_slot'];
 
     // Verify the slot belongs to this doctor
     $verify_sql = "SELECT SlotID FROM timeslots WHERE SlotID = ? AND DoctorID = ?";
@@ -134,25 +135,39 @@ if (isset($_GET['remove_slot']) && is_numeric($_GET['remove_slot'])) {
         $message = "You can only remove your own time slots.";
         $alertType = "danger";
     } else {
-        $sql = "DELETE FROM timeslots WHERE SlotID = ? AND DoctorID = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("is", $slotID, $doctorID);
+        // Check if there are any appointments using this slot
+        $appt_check_sql = "SELECT COUNT(*) as count FROM appointments WHERE SlotID = ? AND statusID IN (1, 2)";
+        $appt_check_stmt = $conn->prepare($appt_check_sql);
+        $appt_check_stmt->bind_param("i", $slotID);
+        $appt_check_stmt->execute();
+        $appt_check_result = $appt_check_stmt->get_result();
+        $appt_count = $appt_check_result->fetch_assoc()['count'];
+        $appt_check_stmt->close();
         
-        if ($stmt->execute()) {
-            $message = "Time slot removed successfully!";
-            $alertType = "success";
+        if ($appt_count > 0) {
+            $message = "Cannot remove this time slot as there are pending or approved appointments using it.";
+            $alertType = "warning";
         } else {
-            $message = "Error removing time slot: " . $conn->error;
-            $alertType = "danger";
+            $sql = "DELETE FROM timeslots WHERE SlotID = ? AND DoctorID = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("is", $slotID, $doctorID);
+            
+            if ($stmt->execute()) {
+                $message = "Time slot removed successfully!";
+                $alertType = "success";
+            } else {
+                $message = "Error removing time slot: " . $conn->error;
+                $alertType = "danger";
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
     $verify_stmt->close();
 }
 
-// Remove blocked date - ONLY for this doctor
+// FIXED: Remove blocked date - ONLY for this doctor
 if (isset($_GET['remove_block']) && is_numeric($_GET['remove_block'])) {
-    $blockID = $_GET['remove_block'];
+    $blockID = (int)$_GET['remove_block'];
 
     // Verify the blocked date belongs to this doctor
     $verify_sql = "SELECT BlockID FROM blocked_dates WHERE BlockID = ? AND DoctorID = ?";
@@ -220,8 +235,10 @@ $stmt->close();
 
 // Days of week array
 $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-?>
 
+// Close the doctor verification statement
+$doctor_verify_stmt->close();
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -234,8 +251,8 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  
   <style>
-    /* Exact same CSS variables and styles as doctor_profile.php */
     :root {
         --primary: #2e7d32;
         --primary-light: #60ad5e;
@@ -259,7 +276,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         overflow-x: hidden;
     }
     
-    /* Exact same sidebar styles as doctor_profile.php */
     .sidebar {
         width: 250px;
         background: var(--primary);
@@ -330,7 +346,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         text-align: center;
     }
 
-    /* Exact same header styles as doctor_profile.php */
     .header {
         background: white;
         padding: 15px 30px;
@@ -386,7 +401,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         font-size: 1.5rem;
     }
     
-    /* Main content styles */
     .main-content {
         margin-left: 0;
         padding: 20px;
@@ -409,7 +423,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         display: none;
     }
     
-    /* Page header styles */
     .page-header {
         background: white;
         padding: 20px;
@@ -432,7 +445,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         font-size: 0.95rem;
     }
     
-    /* Card styles */
     .card {
         border: none;
         box-shadow: var(--shadow-sm);
@@ -453,7 +465,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         padding: 20px;
     }
     
-    /* Form styles */
     .form-label {
         font-weight: 600;
         color: var(--text-dark);
@@ -474,7 +485,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         outline: none;
     }
     
-    /* Button styles */
     .btn-primary {
         background-color: var(--primary);
         border-color: var(--primary);
@@ -535,7 +545,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         color: white;
     }
     
-    /* Schedule-specific styles */
     .schedule-container {
         max-width: 1200px;
         margin: 0 auto;
@@ -571,7 +580,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         font-weight: 500;
     }
     
-    /* Table styles */
     .table {
         margin-top: 10px;
     }
@@ -588,14 +596,12 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         padding: 12px;
     }
     
-    /* Alert styles */
     .alert {
         border-radius: var(--radius-sm);
         padding: 15px 20px;
         margin-bottom: 20px;
     }
     
-    /* Guidelines list styles */
     .card-body ul {
         padding-left: 20px;
     }
@@ -605,7 +611,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         line-height: 1.5;
     }
     
-    /* Responsive styles */
     @media (max-width: 992px) {
         .sidebar {
             transform: translateX(-250px);
@@ -659,7 +664,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
   </style>
 </head>
 <body>
-  <!-- Exact same sidebar as doctor_profile.php -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="img/GCLINIC.png" alt="Medical Clinic Logo" class="sidebar-logo">
@@ -686,7 +690,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         </a></li>
     </ul>
     
-    <!-- Add logout section at bottom of sidebar -->
     <div class="sidebar-divider" style="margin-top: auto;"></div>
     <ul class="sidebar-menu">
         <li><a href="doctor_login.php" class="logout-link" onclick="return confirmLogout()">
@@ -695,7 +698,6 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
     </ul>
   </aside>
 
-  <!-- Simplified header without action buttons -->
   <header class="header header-expanded" id="header">
     <div class="d-flex align-items-center">
         <button class="toggle-sidebar" id="sidebarToggle">
@@ -705,17 +707,14 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
     </div>
     
     <div class="header-actions">
-        <!-- Removed all header action buttons -->
+        <!-- Empty for now -->
     </div>
   </header>
 
-  <!-- Sidebar overlay -->
   <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-  <!-- Main content with exact same structure as doctor_profile.php -->
   <main class="main-content main-expanded" id="mainContent">
     <div class="container-fluid">
-        <!-- Page header -->
         <div class="page-header">
             <h1><i class="bi bi-calendar3 me-2"></i>My Schedule Configuration</h1>
             <p>Dr. <?= htmlspecialchars($doctorInfo['FirstName'] . ' ' . $doctorInfo['LastName']) ?> - Configure your available days and time slots for appointments</p>
@@ -723,7 +722,7 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
         
         <?php if (!empty($message)): ?>
         <div class="alert alert-<?= $alertType ?> alert-dismissible fade show" role="alert">
-            <?= $message ?>
+            <?= htmlspecialchars($message) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         <?php endif; ?>
@@ -817,16 +816,17 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
                             <i class="bi bi-calendar-x me-2"></i>Block Off Unavailable Dates
                         </div>
                         <div class="card-body">
-                            <form action="" method="POST">
+                            <form action="" method="POST" id="blockDateForm">
                                 <div class="mb-3">
                                     <label for="block_date" class="form-label">Select Date to Block</label>
                                     <input type="date" class="form-control" id="block_date" name="block_date" min="<?= date('Y-m-d') ?>" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="block_reason" class="form-label">Reason (Optional)</label>
-                                    <input type="text" class="form-control" id="block_reason" name="block_reason" placeholder="e.g., Vacation, Meeting, etc.">
+                                    <input type="text" class="form-control" id="block_reason" name="block_reason" placeholder="e.g., Vacation, Meeting, Personal Leave, etc." maxlength="255">
+                                    <div class="form-text">Optional: Provide a reason for blocking this date</div>
                                 </div>
-                                <button type="submit" name="block_date" class="btn btn-danger">
+                                <button type="submit" name="block_date_submit" class="btn btn-danger">
                                     <i class="bi bi-x-circle me-2"></i>Block This Date
                                 </button>
                             </form>
@@ -887,11 +887,12 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
                 </div>
                 <div class="card-body">
                     <ul>
-                        <li>Add your regular weekly availability by creating time slots for each day you're available.</li>
-                        <li>Use the "Block Off Unavailable Dates" section to mark specific dates when you're not available (vacations, meetings, etc.).</li>
-                        <li>Students will only be able to book appointments during your available time slots and on days that aren't blocked.</li>
-                        <li>You cannot select dates in the past to block off.</li>
-                        <li>Make sure to keep your schedule updated to prevent scheduling conflicts.</li>
+                        <li><strong>Time Slots:</strong> Add your regular weekly availability by creating time slots for each day you're available.</li>
+                        <li><strong>Block Dates:</strong> Use the "Block Off Unavailable Dates" section to mark specific dates when you're not available (vacations, meetings, etc.).</li>
+                        <li><strong>Student Booking:</strong> Students will only be able to book appointments during your available time slots and on days that aren't blocked.</li>
+                        <li><strong>Date Restrictions:</strong> You cannot select dates in the past to block off - only current and future dates.</li>
+                        <li><strong>Keep Updated:</strong> Make sure to keep your schedule updated to prevent scheduling conflicts.</li>
+                        <li><strong>Removal:</strong> You can remove any time slots or blocked dates at any time using the "Remove" buttons.</li>
                     </ul>
                 </div>
             </div>
@@ -899,20 +900,16 @@ $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday
     </div>
   </main>
 
-  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   
-  <!-- Exact same JavaScript as doctor_profile.php -->
   <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // DOM Elements
     const sidebar = document.getElementById('sidebar');
     const header = document.getElementById('header');
     const mainContent = document.querySelector('.main-content');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     
-    // Toggle Sidebar
     function toggleSidebar() {
         const isSidebarCollapsed = sidebar.classList.contains('sidebar-collapsed');
         
@@ -932,7 +929,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Set initial state based on screen size
     function setInitialState() {
         if (window.innerWidth <= 992) {
             sidebar.classList.add('sidebar-collapsed');
@@ -945,12 +941,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Toggle sidebar event
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', toggleSidebar);
     }
     
-    // Handle overlay click
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', function() {
             if (!sidebar.classList.contains('sidebar-collapsed')) {
@@ -959,7 +953,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Handle window resize
     window.addEventListener('resize', function() {
         if (window.innerWidth <= 992) {
             sidebar.classList.add('sidebar-collapsed');
@@ -968,30 +961,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Print function
-    window.printPage = function() {
-        window.print();
+    const blockDateForm = document.getElementById('blockDateForm');
+    if (blockDateForm) {
+        blockDateForm.addEventListener('submit', function(e) {
+            const dateInput = document.getElementById('block_date');
+            const selectedDate = new Date(dateInput.value);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (selectedDate < today) {
+                e.preventDefault();
+                alert('You cannot block dates in the past. Please select today or a future date.');
+                return false;
+            }
+        });
     }
     
-    // Set initial state
     setInitialState();
     
-    // Auto-dismiss alerts after 5 seconds
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => {
         setTimeout(() => {
             const bootstrapAlert = bootstrap.Alert.getOrCreateInstance(alert);
-            bootstrapAlert.close();
+            if (bootstrapAlert) {
+                bootstrapAlert.close();
+            }
         }, 5000);
     });
     
-    // Set minimum date for date picker
     const today = new Date().toISOString().split('T')[0];
     const blockDateInput = document.getElementById('block_date');
     if (blockDateInput) {
         blockDateInput.setAttribute('min', today);
     }
 });
+
+window.confirmLogout = function() {
+    return confirm('Are you sure you want to logout?');
+}
+
+window.printPage = function() {
+    window.print();
+}
   </script>
 </body>
 </html>

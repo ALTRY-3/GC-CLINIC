@@ -1,6 +1,7 @@
 <?php 
 session_start();
 include 'config.php';
+include 'send_appointment_notification.php';
 
 // Check if doctor is logged in
 if (!isset($_SESSION['doctor_id'])) {
@@ -165,14 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
         $appointment = $appointment_result->fetch_assoc();
         
         if ($appointment) {
-            // Get student details
-            $getStudent = $conn->prepare("SELECT email, FirstName, LastName FROM students WHERE StudentID = ?");
-            $getStudent->bind_param("i", $appointment['StudentID']);
-            $getStudent->execute();
-            $student = $getStudent->get_result()->fetch_assoc();
-            
             if (isset($_POST['action'])) {
                 $action = $_POST['action'];
+                $emailSent = false;
                 
                 if ($action === 'approve_appointment') {
                     // Update appointment status to Approved
@@ -181,13 +177,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    $message = "Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
-                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                             " has been approved.";
-                    
-                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
-                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
-                    $insertNotification->execute();
+                    // Send email notification
+                    $emailSent = sendAppointmentStatusNotification($appointmentID, 'approved');
                     
                     $_SESSION['success_message'] = "Appointment has been approved successfully.";
                 }
@@ -198,13 +189,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    $message = "Congratulations! Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
-                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                             " has been completed. Please check for your results or follow-up instructions.";
-                    
-                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
-                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
-                    $insertNotification->execute();
+                    // Send email notification
+                    $emailSent = sendAppointmentStatusNotification($appointmentID, 'completed');
                     
                     $_SESSION['success_message'] = "Appointment has been marked as completed.";
                 }
@@ -215,13 +201,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    $message = "Your appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
-                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                             " has been cancelled.";
-                    
-                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
-                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
-                    $insertNotification->execute();
+                    // Send email notification
+                    $emailSent = sendAppointmentStatusNotification($appointmentID, 'cancelled');
                     
                     $_SESSION['success_message'] = "Appointment has been cancelled.";
                 }
@@ -232,13 +213,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    $message = "Your cancellation request for the appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
-                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                             " has been approved.";
-                    
-                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
-                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
-                    $insertNotification->execute();
+                    // Send email notification
+                    $emailSent = sendAppointmentStatusNotification($appointmentID, 'cancellation_approved');
                     
                     $_SESSION['success_message'] = "Cancellation request has been approved.";
                 }
@@ -249,15 +225,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['appointment_id'])) {
                     $updateStmt->bind_param("i", $appointmentID);
                     $updateStmt->execute();
                     
-                    $message = "Your cancellation request for the appointment with Dr. " . $doctorInfo['FirstName'] . " " . $doctorInfo['LastName'] . 
-                             " on " . date('F j, Y', strtotime($appointment['AppointmentDate'])) . 
-                             " has been rejected. The appointment is still scheduled.";
-                    
-                    $insertNotification = $conn->prepare("INSERT INTO notifications (studentID, appointmentID, message) VALUES (?, ?, ?)");
-                    $insertNotification->bind_param("iis", $appointment['StudentID'], $appointmentID, $message);
-                    $insertNotification->execute();
+                    // Send email notification
+                    $emailSent = sendAppointmentStatusNotification($appointmentID, 'cancellation_rejected');
                     
                     $_SESSION['success_message'] = "Cancellation request has been rejected.";
+                }
+                
+                // Log email sending status
+                if (!$emailSent) {
+                    error_log("Failed to send email notification for appointment ID: " . $appointmentID . " Action: " . $action);
                 }
             }
             

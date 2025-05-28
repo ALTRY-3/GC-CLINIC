@@ -79,8 +79,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Commit transaction
         $conn->commit();
         
-        // Redirect back to student management page with success message
-        header("Location: student_management.php?upload=success&appointment=" . $appointment_id);
+        // Redirect back to doctor_student page with success message
+        header("Location: doctor_student.php?upload=success&appointment=" . $appointment_id);
         exit();
 
     } catch (Exception $e) {
